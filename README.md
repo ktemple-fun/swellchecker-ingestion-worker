@@ -1,1 +1,0 @@
-# swellchecker-ingestion-worker
