@@ -14,7 +14,7 @@ export async function fetchTideData(stationId) {
       time_zone: 'lst_ldt',
       units: 'english',
       interval: 'h',
-      format: 'json',
+      format: 'json'
     });
 
   const response = await fetch(url.toString());

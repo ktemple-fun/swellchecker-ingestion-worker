@@ -1,10 +1,7 @@
 export async function fetchCdipForecast() {
   const url = 'https://cdip.ucsd.edu/data_access/forecast_point/073p1/latest/wave.dat';
 
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'SwellChecker' },
-  });
-
+  const res = await fetch(url, { headers: { 'User-Agent': 'SwellChecker' } });
   const text = await res.text();
 
   const lines = text
@@ -23,7 +20,7 @@ export async function fetchCdipForecast() {
       time: `${year}-${month}-${day}T${hour}:00:00Z`,
       waveHeight: parseFloat(waveHeight),
       peakPeriod: parseFloat(peakPeriod),
-      meanDirection: parseFloat(meanDirection),
+      meanDirection: parseFloat(meanDirection)
     };
   });
 }
