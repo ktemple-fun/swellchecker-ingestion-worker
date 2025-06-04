@@ -1,6 +1,6 @@
 const { supabase } = require('./supabaseClient');
 
-async function storeForecast(spotSlug, buoyData) {
+export async function storeForecast(spotSlug, buoyData) {
   const { data: spot, error } = await supabase
     .from('surf_spots')
     .select('id')

@@ -1,6 +1,6 @@
 const fetch = require('node-fetch');
 
-async function fetchBuoyData(buoyId) {
+export async function fetchBuoyData(buoyId) {
   const url = `https://www.ndbc.noaa.gov/data/realtime2/${buoyId}.txt`;
   const res = await fetch(url);
   const text = await res.text();

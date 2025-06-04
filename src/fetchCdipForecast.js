@@ -1,6 +1,6 @@
 const fetch = require('node-fetch');
 
-async function fetchCdipForecast() {
+export async function fetchCdipForecast() {
   const url = 'https://cdip.ucsd.edu/data_access/forecast_point/073p1/latest/wave.dat';
   const res = await fetch(url);
   const text = await res.text();

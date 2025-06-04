@@ -1,6 +1,6 @@
 const { supabase } = require('./supabaseClient');
 
-async function storeTide(spotSlug, tideData) {
+export async function storeTide(spotSlug, tideData) {
   const { data: spot, error } = await supabase
     .from('surf_spots')
     .select('id')

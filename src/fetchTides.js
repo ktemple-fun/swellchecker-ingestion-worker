@@ -4,7 +4,7 @@ function formatDate(date) {
   return date.toISOString().split('T')[0].replace(/-/g, '');
 }
 
-async function fetchTideData(stationId) {
+export async function fetchTideData(stationId) {
   const now = new Date();
   const tomorrow = new Date(now);
   tomorrow.setDate(now.getDate() + 1);
