@@ -1,9 +1,20 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from './src/supabaseClient.js';
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+async function testInsert() {
+  const { error } = await supabase.from('forecast').insert({
+    slug: 'test-spot',
+    waveHeight: 4.5,
+    wavePeriod: 12,
+    windSpeed: 5,
+    windDirection: 250,
+    observationTime: '2024-06-04 12:00:00'
+  });
 
-console.log("Supabase URL loaded:", supabaseUrl);
-console.log("Service Key loaded:", !!supabaseServiceKey);
+  if (error) {
+    console.error("Insert error:", error);
+  } else {
+    console.log("✅ Inserted test forecast row");
+  }
+}
 
-export const supabase = createClient(supabaseUrl, supabaseServiceKey);
+testInsert();
