@@ -1,4 +1,4 @@
-module.exports = [
+const spots = [
     {
         slug: 'san-diego',
         name: 'San Diego (Mission Beach)',
@@ -51,7 +51,7 @@ module.exports = [
         slug: 'oceanside',
         name: 'Oceanside Harbor',
         buoyId: '46225',
-        tideStationId: '9410170'  // fallback working station
+        tideStationId: '9410170'
     },
     {
         slug: 'san-clemente',
@@ -60,3 +60,5 @@ module.exports = [
         tideStationId: '9410660'
     }
 ];
+
+export default spots;

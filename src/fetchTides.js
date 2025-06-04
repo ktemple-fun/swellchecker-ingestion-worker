@@ -1,38 +1,24 @@
-const fetch = require('node-fetch');
-
-function formatDate(date) {
-  return date.toISOString().split('T')[0].replace(/-/g, '');
-}
-
 export async function fetchTideData(stationId) {
   const now = new Date();
-  const tomorrow = new Date(now);
+  const tomorrow = new Date();
   tomorrow.setDate(now.getDate() + 1);
 
   const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?` +
     new URLSearchParams({
       product: 'predictions',
       application: 'swellchecker',
-      begin_date: formatDate(now),
-      end_date: formatDate(tomorrow),
+      begin_date: now.toISOString().split('T')[0].replace(/-/g, ''),
+      end_date: tomorrow.toISOString().split('T')[0].replace(/-/g, ''),
       datum: 'MLLW',
       station: stationId,
       time_zone: 'lst_ldt',
       units: 'english',
       interval: 'h',
-      format: 'json'
+      format: 'json',
     });
 
-  const res = await fetch(url);
-  const data = await res.json();
+  const response = await fetch(url.toString());
+  const data = await response.json();
 
-  if (!data.predictions) throw new Error('No tide data found');
-
-  return data.predictions.map(pred => ({
-    time: pred.t,
-    height: parseFloat(pred.v)
-  }));
+  return data.predictions || [];
 }
-
-module.exports = { fetchTideData };
-
