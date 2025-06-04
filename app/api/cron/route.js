@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
+import spots from '../../../src/spots';
 import { fetchBuoyData } from '../../../src/fetchBuoy';
 import { storeForecast } from '../../../src/storeForecast';
 import { fetchTideData } from '../../../src/fetchTides';
 import { storeTide } from '../../../src/storeTides';
 import { fetchCdipForecast } from '../../../src/fetchCdipForecast';
 import { storeCdipForecast } from '../../../src/storeCdipForecast';
-import spots from '../../../src/spots';
 
 export async function GET() {
   for (const spot of spots) {
