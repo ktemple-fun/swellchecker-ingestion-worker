@@ -3,11 +3,11 @@ import { supabase } from './supabaseClient.js';
 export async function storeForecast(slug, data) {
   const insertPayload = {
     slug: slug,
-    waveHeight: parseFloat(data.waveHeight),
-    wavePeriod: parseFloat(data.wavePeriod),
-    windSpeed: parseFloat(data.windSpeed),
-    windDirection: parseFloat(data.windDirection),
-    observationTime: data.observationTime
+    wave_height: parseFloat(data.waveHeight),
+    wave_period: parseFloat(data.wavePeriod),
+    wind_speed: parseFloat(data.windSpeed),
+    wind_direction: parseFloat(data.windDirection),
+    observation_time: data.observationTime
   };
 
   console.log("Inserting forecast row:", insertPayload);
