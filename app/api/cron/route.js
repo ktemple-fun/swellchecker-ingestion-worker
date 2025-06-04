@@ -10,7 +10,11 @@ import spots from '../../../src/spots.js';
 export async function GET() {
   for (const spot of spots) {
     try {
+      console.log(`Processing spot: ${spot.slug}`);
+
       const buoyData = await fetchBuoyData(spot.buoyId);
+      console.log(`Buoy data for ${spot.slug}:`, buoyData);
+
       await storeForecast(spot.slug, buoyData);
     } catch (err) {
       console.error(`Error processing forecast for ${spot.slug}:`, err);
