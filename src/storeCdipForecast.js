@@ -1,3 +1,28 @@
-export async function storeCdipForecast(slug, data) {
-  console.log(`✅ CDIP Forecast inserted for: ${slug}`);
+import { supabase } from './supabaseClient.js';
+import { scoreForecast } from './scoreForecast.js';
+
+export async function storeCdipForecast(slug, forecast) {
+  for (const row of forecast) {
+    const qualityResult = scoreForecast({
+      wave_height: row.wave_height,
+      wave_period: row.wave_period,
+      wind_speed: row.wind_speed,
+      wind_direction: row.wind_direction
+    });
+
+    const { error } = await supabase.from('forecast').upsert({
+      slug,
+      wave_height: row.wave_height,
+      wave_period: row.wave_period,
+      wind_speed: row.wind_speed,
+      wind_direction: row.wind_direction,
+      observation_time: row.observation_time,
+      rawScore: qualityResult.rawScore,
+      quality: qualityResult.quality,
+    }, { onConflict: ['slug', 'observation_time'] }); // de-duplication key
+
+    if (error) {
+      console.error('Insert error:', error);
+    }
+  }
 }
