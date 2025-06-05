@@ -9,7 +9,7 @@ export async function fetchCdipForecast() {
   const lines = text
     .split('\n')
     .filter(line => line && !line.startsWith('#'))
-    .slice(0, 48);
+    .slice(0, 48); // 48 hours of data
 
   return lines.map(line => {
     const [yyyymmddhh, waveHeight, peakPeriod, meanDirection] = line.trim().split(/\s+/);

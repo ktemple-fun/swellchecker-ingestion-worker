@@ -1,9 +1,12 @@
 export function mergeForecasts(cdipRows, nwsRows) {
-  return cdipRows.map(cdip => {
+  const merged = cdipRows.map(cdip => {
+    // Try to find matching NOAA forecast within 1 hour window
+    const cdipTime = new Date(cdip.observation_time).getTime();
+
     const nwsMatch = nwsRows.find(nws => {
-      const cdipTime = new Date(cdip.observation_time);
-      const nwsTime = new Date(nws.observation_time);
-      return Math.abs(cdipTime - nwsTime) <= 60 * 60 * 1000;
+      const nwsTime = new Date(nws.observation_time).getTime();
+      const diffInMs = Math.abs(cdipTime - nwsTime);
+      return diffInMs <= 60 * 60 * 1000; // 1 hour tolerance
     });
 
     return {
@@ -14,4 +17,6 @@ export function mergeForecasts(cdipRows, nwsRows) {
       wind_direction: nwsMatch ? nwsMatch.wind_direction : 0
     };
   });
+
+  return merged;
 }
