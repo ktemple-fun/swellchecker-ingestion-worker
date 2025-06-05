@@ -1,64 +1,9 @@
 const spots = [
-    {
-        slug: 'san-diego',
-        name: 'San Diego (Mission Beach)',
-        buoyId: '46232',
-        tideStationId: '9410170'
-    },
-    {
-        slug: 'la-jolla',
-        name: 'La Jolla',
-        buoyId: '46254',
-        tideStationId: '9410230'
-    },
-    {
-        slug: 'windansea',
-        name: 'Windansea',
-        buoyId: '46254',
-        tideStationId: '9410230'
-    },
-    {
-        slug: 'blacks-beach',
-        name: 'Blacks Beach',
-        buoyId: '46254',
-        tideStationId: '9410230'
-    },
-    {
-        slug: 'ocean-beach',
-        name: 'Ocean Beach Pier',
-        buoyId: '46232',
-        tideStationId: '9410230'
-    },
-    {
-        slug: 'cardiff',
-        name: 'Cardiff Reef',
-        buoyId: '46254',
-        tideStationId: '9410230'
-    },
-    {
-        slug: 'encinitas',
-        name: 'Encinitas',
-        buoyId: '46254',
-        tideStationId: '9410230'
-    },
-    {
-        slug: 'del-mar',
-        name: 'Del Mar',
-        buoyId: '46254',
-        tideStationId: '9410230'
-    },
-    {
-        slug: 'oceanside',
-        name: 'Oceanside Harbor',
-        buoyId: '46225',
-        tideStationId: '9410170'
-    },
-    {
-        slug: 'san-clemente',
-        name: 'San Clemente Pier',
-        buoyId: '46223',
-        tideStationId: '9410660'
-    }
+  { slug: 'san-diego', lat: 32.755, lon: -117.25 },
+  { slug: 'la-jolla', lat: 32.85, lon: -117.27 },
+  { slug: 'blacks-beach', lat: 32.88, lon: -117.25 },
+  { slug: 'cardiff', lat: 33.02, lon: -117.28 },
+  { slug: 'oceanside', lat: 33.19, lon: -117.38 },
+  { slug: 'san-clemente', lat: 33.42, lon: -117.62 }
 ];
-
 export default spots;

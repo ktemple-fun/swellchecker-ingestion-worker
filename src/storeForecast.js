@@ -1,22 +1,26 @@
 import { supabase } from './supabaseClient.js';
+import { scoreForecast } from './scoreForecast.js';
 
-export async function storeForecast(slug, data) {
-  const insertPayload = {
-    slug: slug,
-    wave_height: parseFloat(data.waveHeight),
-    wave_period: parseFloat(data.wavePeriod),
-    wind_speed: parseFloat(data.windSpeed),
-    wind_direction: parseFloat(data.windDirection),
-    observation_time: data.observationTime
-  };
+export async function storeForecasts(slug, forecasts) {
+  for (const row of forecasts) {
+    const qualityResult = scoreForecast({
+      wave_height: row.wave_height,
+      wave_period: row.wave_period,
+      wind_speed: row.wind_speed,
+      wind_direction: row.wind_direction
+    });
 
-  console.log("Inserting forecast row:", insertPayload);
+    const { error } = await supabase.from('forecast').upsert({
+      slug,
+      wave_height: row.wave_height,
+      wave_period: row.wave_period,
+      wind_speed: row.wind_speed,
+      wind_direction: row.wind_direction,
+      observation_time: row.observation_time,
+      rawScore: qualityResult.rawScore,
+      quality: qualityResult.quality,
+    }, { onConflict: ['slug', 'observation_time'] });
 
-  const { error } = await supabase.from('forecast').insert(insertPayload);
-
-  if (error) {
-    console.error(`❌ Failed to insert forecast for ${slug}:`, error);
-  } else {
-    console.log(`✅ Forecast inserted for: ${slug}`);
+    if (error) console.error('Insert error:', error);
   }
 }
