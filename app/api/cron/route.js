@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { fetchBuoyData } from '../../../src/fetchBuoy.js';
-import { storeForecast } from '../../../src/storeForecast.js';
 import { fetchTideData } from '../../../src/fetchTides.js';
 import { storeTide } from '../../../src/storeTides.js';
 import { fetchCdipForecast } from '../../../src/fetchCdipForecast.js';
@@ -9,17 +7,7 @@ import spots from '../../../src/spots.js';
 
 export async function GET() {
   for (const spot of spots) {
-    try {
-      console.log(`Processing spot: ${spot.slug}`);
-
-      const buoyData = await fetchBuoyData(spot.buoyId);
-      console.log(`Buoy data for ${spot.slug}:`, buoyData);
-
-      await storeForecast(spot.slug, buoyData);
-    } catch (err) {
-      console.error(`Error processing forecast for ${spot.slug}:`, err);
-    }
-
+ 
     try {
       const tideData = await fetchTideData(spot.tideStationId);
       await storeTide(spot.slug, tideData);
