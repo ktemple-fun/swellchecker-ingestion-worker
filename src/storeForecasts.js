@@ -18,7 +18,7 @@ export async function storeForecasts(slug, forecasts) {
       wind_direction: row.wind_direction,
       observation_time: row.observation_time,
       rawScore: qualityResult.rawScore,
-      quality: qualityResult.quality,
+      quality: qualityResult.quality
     }, { onConflict: ['slug', 'observation_time'] });
 
     if (error) console.error('Insert error:', error);

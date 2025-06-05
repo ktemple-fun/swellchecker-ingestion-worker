@@ -1,22 +1,9 @@
-import fetch from 'node-fetch';
-
 export async function fetchCdipForecast() {
   const url = 'https://cdip.ucsd.edu/data_access/forecast_point/073p1/latest/wave.dat';
-
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'SwellChecker/1.0' }
-  });
-
-  if (!res.ok) {
-    throw new Error(`CDIP fetch failed: ${res.statusText}`);
-  }
-
+  const res = await fetch(url, { headers: { 'User-Agent': 'SwellChecker/1.0' } });
   const text = await res.text();
 
-  const lines = text
-    .split('\n')
-    .filter(line => line && !line.startsWith('#'))
-    .slice(0, 48); // get next 48 hours
+  const lines = text.split('\n').filter(line => line && !line.startsWith('#')).slice(0, 48);
 
   const forecast = lines.map(line => {
     const [yyyymmddhh, waveHeight, peakPeriod, meanDirection] = line.trim().split(/\s+/);
@@ -24,13 +11,12 @@ export async function fetchCdipForecast() {
     const month = yyyymmddhh.slice(4, 6);
     const day = yyyymmddhh.slice(6, 8);
     const hour = yyyymmddhh.slice(8, 10);
-
     return {
       observation_time: `${year}-${month}-${day}T${hour}:00:00Z`,
       wave_height: parseFloat(waveHeight),
       wave_period: parseFloat(peakPeriod),
       wind_direction: parseFloat(meanDirection),
-      wind_speed: 0 // CDIP doesn't have wind data
+      wind_speed: 0
     };
   });
 
