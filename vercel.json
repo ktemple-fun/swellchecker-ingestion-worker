@@ -5,7 +5,7 @@
       "schedule": "0 10 * * *"
     },
     {
-  "framework": "other"
-}
+      "framework": "other"
+    }
   ]
 }

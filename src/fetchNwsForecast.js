@@ -1,3 +1,5 @@
+import fetch from 'node-fetch';
+
 export async function fetchNwsForecast(lat, lon) {
   const metaRes = await fetch(`https://api.weather.gov/points/${lat},${lon}`, {
     headers: { 'User-Agent': 'SwellChecker/1.0' }
@@ -12,13 +14,11 @@ export async function fetchNwsForecast(lat, lon) {
 
   const forecastData = await forecastRes.json();
 
-  const rows = forecastData.properties.periods.map(period => ({
+  return forecastData.properties.periods.map(period => ({
     observation_time: period.startTime,
-    wind_speed: period.windSpeed ? parseInt(period.windSpeed.split(' ')[0]) : 0,
-    wind_direction: period.windDirection ? compassToDegrees(period.windDirection) : 0
+    wind_speed: parseInt(period.windSpeed),
+    wind_direction: compassToDegrees(period.windDirection)
   }));
-
-  return rows;
 }
 
 function compassToDegrees(dir) {
