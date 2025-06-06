@@ -3,12 +3,11 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-     "start": "node --env-file=.env.local src/index.js",
-    "build": "echo 'Nothing to build'"
+    "start": "node --env-file=.env.local src/index.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.5",
-    "dotenv": "^16.5.0",
-    "node-fetch": "^3.3.2"
+    "@supabase/supabase-js": "^2.39.4",
+    "dotenv": "^16.4.5",
+    "node-fetch": "^3.4.1"
   }
 }
