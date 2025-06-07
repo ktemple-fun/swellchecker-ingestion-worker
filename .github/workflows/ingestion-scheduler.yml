@@ -1,0 +1,19 @@
+name: Scheduled Ingestion
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Runs every hour
+  workflow_dispatch:  # Allow manual trigger too
+
+jobs:
+  run-ingestion:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Call Supabase Edge Function
+      env:
+        SUPABASE_FUNCTION_URL: https://prucmlbumgclmhrrbbux.functions.supabase.co/full-ingestion
+        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      run: |
+        curl -X POST "$SUPABASE_FUNCTION_URL" \
+          -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
