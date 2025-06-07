@@ -1,13 +1,8 @@
 {
-  "name": "swellchecker-ingestion-worker",
-  "version": "1.0.0",
   "type": "module",
-  "scripts": {
-    "start": "node --env-file=.env.local src/index.js"
-  },
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.4",
-    "dotenv": "^16.4.5",
-    "node-fetch": "^3.4.1"
+    "@supabase/supabase-js": "^2.50.0",
+    "axios": "^1.6.7",
+    "dotenv": "^16.5.0"
   }
 }
