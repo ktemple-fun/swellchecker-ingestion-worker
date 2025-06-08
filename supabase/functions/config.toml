@@ -1,2 +1,4 @@
 [project]
 ref = "prucmlbumgclmhrrbbux"
+[functions]
+backend = "deno"

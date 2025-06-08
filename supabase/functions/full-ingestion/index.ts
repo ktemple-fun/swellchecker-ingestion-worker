@@ -4,6 +4,7 @@ import fetchTideData from "./parsers/fetchTideData.ts";
 import { surfSpots } from "./config/surfSpots.ts";
 import { insertIngestionData } from "./lib/insertIngestionData.ts";
 import { insertTideObservations } from "./lib/insertTideObservations.ts";
+
 serve(async ()=>{
   try {
     for (const spot of surfSpots){
