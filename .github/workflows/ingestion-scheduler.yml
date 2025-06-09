@@ -12,7 +12,8 @@ jobs:
     steps:
     - name: Call Supabase Edge Function
       env:
-        SUPABASE_FUNCTION_URL: https://prucmlbumgclmhrrbbux.functions.supabase.co/full-ingestion
+        SUPABASE_FUNCTION_URL: https://uepdfmirixjeftqawhns.functions.supabase.co/full-ingestion
+
         SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       run: |
         curl -X POST "$SUPABASE_FUNCTION_URL" \
