@@ -1,9 +1,18 @@
 export default async function fetchTideData(station: string) {
-  const now = new Date();
-  const start = new Date(now.getTime() - 48 * 60 * 60 * 1000);
-  const end = now;
 
-  const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${start.toISOString().slice(0, 10)}&end_date=${end.toISOString().slice(0, 10)}&station=${station}&product=hourly_height&datum=MLLW&units=english&time_zone=gmt&format=json`;
+  const now = new Date();
+  const start = now;
+  const end = new Date(now.getTime() + 48 * 60 * 60 * 1000); // 48h in the future
+
+
+  const beginDate = start.toISOString().slice(0, 10).replace(/-/g, '');
+  const endDate = end.toISOString().slice(0, 10).replace(/-/g, '');
+
+  const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter` +
+    `?begin_date=${beginDate}&end_date=${endDate}` +
+    `&station=${station}&product=predictions&datum=MLLW&units=english` +
+    `&time_zone=gmt&interval=h&format=json`;
+
   console.log("Fetching tide data for station:", station);
   console.log("Request URL:", url);
 
@@ -21,7 +30,7 @@ export default async function fetchTideData(station: string) {
       return [];
     }
 
-    const parsedData = data.data.map((item: { t: string; v: string }) => ({
+    const parsedData = data.predictions.map((item: { t: string; v: string }) => ({
       timestamp: item.t,
       tide_ft: parseFloat(item.v),
     }));

@@ -18,9 +18,12 @@ export async function insertIngestionData(spot_slug: string, data: any[]) {
 
   const { error } = await supabase
     .from("surf_ingestion_data")
-    .insert(payload, { onConflict: "spot_slug,timestamp" });
+    .upsert(payload, {
+      onConflict: ["spot_slug", "timestamp"],
+    });
 
   if (error) {
-    console.error("❌ Failed to insert ingestion data:", error);
+    console.error("❌ Failed to upsert ingestion data:", error);
   }
 }
+
