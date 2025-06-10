@@ -1,10 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import fetchNdbcData from "./parsers/fetchNdbcData.ts";
 import fetchTideData from "./parsers/fetchTideData.ts";
-import  fetchSwellForecast  from "./parsers/fetchSwellForecast.ts";
+import fetchSwellForecast from "./parsers/fetchSwellForecast.ts";
 import { surfSpots } from "./config/surfSpots.ts";
 import { insertIngestionData } from "./lib/insertIngestionData.ts";
 import { insertTideObservations } from "./lib/insertTideObservations.ts";
+
+import { generateSurfOutlook, cacheSurfOutlook } from './lib/generateSurfOutlook.ts';
+
 
 // Helper to format ISO window
 function getForecastTimeWindow(hoursAhead = 240) {
@@ -32,6 +35,11 @@ serve(async () => {
       const forecastData = await fetchSwellForecast(spot.lat, spot.lng, start, end);
       await insertIngestionData(spot.slug, forecastData);
 
+      // surf outlook 
+
+      const outlook = await generateSurfOutlook(spot.slug);
+      await cacheSurfOutlook(spot.slug, outlook);
+
       console.log(`✅ Ingestion complete for ${spot.slug}`);
     }
 
@@ -41,3 +49,6 @@ serve(async () => {
     return new Response("Error", { status: 500 });
   }
 });
+
+
+
