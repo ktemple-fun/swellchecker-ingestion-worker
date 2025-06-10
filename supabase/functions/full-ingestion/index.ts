@@ -5,8 +5,8 @@ import fetchSwellForecast from "./parsers/fetchSwellForecast.ts";
 import { surfSpots } from "./config/surfSpots.ts";
 import { insertIngestionData } from "./lib/insertIngestionData.ts";
 import { insertTideObservations } from "./lib/insertTideObservations.ts";
-
-import { generateSurfOutlook, cacheSurfOutlook } from './lib/generateSurfOutlook.ts';
+import { generateSurfOutlook } from './lib/generateSurfOutlook.ts';
+import { cacheSurfOutlook } from './lib/cacheSurfOutlook.ts';
 
 
 // Helper to format ISO window
