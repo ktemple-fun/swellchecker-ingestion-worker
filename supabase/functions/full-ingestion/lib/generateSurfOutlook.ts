@@ -1,7 +1,9 @@
 
+
 import { supabase } from './supabaseClient.ts';
 
 type Rating = 'Poor' | 'Poor+' | 'Fair' | 'Fair+' | 'Good';
+type WindQuality = 'Offshore' | 'Onshore' | 'Sideshore';
 
 interface ForecastEntry {
   timestamp: string;
@@ -23,6 +25,7 @@ interface OutlookSegment {
   avg_tide_ft: number | null;
   avg_wind_speed: number | null;
   avg_wind_direction: number | null;
+  wind_quality: WindQuality;
   rating: Rating;
   summary: string;
 }
@@ -45,29 +48,31 @@ function summarizeConditions(rating: Rating): string {
   }
 }
 
-function isOffshoreWind(windDir: number | null, breakDir = 270): boolean {
-  if (windDir === null) return false;
-  const diff = Math.abs(windDir - breakDir);
-  return diff <= 45 || diff >= 315; // ±45° of offshore
+function getWindQuality(windDir: number | null, breakOrientation = 270): WindQuality {
+  if (windDir === null) return 'Sideshore';
+  const diff = Math.abs(windDir - breakOrientation) % 360;
+  if (diff <= 45 || diff >= 315) return 'Offshore';
+  if (diff >= 135 && diff <= 225) return 'Onshore';
+  return 'Sideshore';
 }
 
-export async function generateSurfOutlook(spotSlug: string): Promise<OutlookSegment[]> {
+export async function generateSurfOutlook(spotSlug: string, breakOrientation = 270): Promise<OutlookSegment[]> {
   const now = new Date().toISOString();
 
-  const { data: forecast, error: err1 } = await supabase
+  const { data: forecast } = await supabase
     .from('surf_ingestion_data')
     .select('timestamp, wave_height, wave_period, wind_speed_mps, wind_direction')
     .eq('spot_slug', spotSlug)
     .gte('timestamp', now);
 
-  const { data: tide, error: err2 } = await supabase
+  const { data: tide } = await supabase
     .from('tide_observation')
     .select('timestamp, tide_ft')
     .eq('location_slug', spotSlug)
     .gte('timestamp', now);
 
-  if (err1 || err2 || !forecast?.length) {
-    console.error('❌ Error fetching forecast or tide data:', err1 || err2);
+  if (!forecast?.length) {
+    console.error('❌ No forecast data');
     return [];
   }
 
@@ -116,18 +121,21 @@ export async function generateSurfOutlook(spotSlug: string): Promise<OutlookSegm
       ? parseFloat((wind_dirs.reduce((a, b) => a + b, 0) / wind_dirs.length).toFixed(0))
       : null;
 
+    const wind_quality = getWindQuality(wind_dir_avg, breakOrientation);
+
     let rating = classifyRating(wave_height, wave_period);
 
-    // Optional tide adjustment
     if (tide_avg != null) {
       if (tide_avg >= 2 && tide_avg <= 4 && rating === 'Fair') rating = 'Fair+';
       if ((tide_avg < 0.5 || tide_avg > 5) && rating === 'Fair+') rating = 'Fair';
     }
 
-    // Optional wind adjustment
-    if (wind_dir_avg != null && isOffshoreWind(wind_dir_avg)) {
+    if (wind_quality === 'Offshore') {
       if (rating === 'Fair+') rating = 'Good';
       else if (rating === 'Fair') rating = 'Fair+';
+    } else if (wind_quality === 'Onshore') {
+      if (rating === 'Fair+') rating = 'Fair';
+      else if (rating === 'Fair') rating = 'Poor+';
     }
 
     results.push({
@@ -137,6 +145,7 @@ export async function generateSurfOutlook(spotSlug: string): Promise<OutlookSegm
       avg_tide_ft: tide_avg,
       avg_wind_speed: wind_speed_avg,
       avg_wind_direction: wind_dir_avg,
+      wind_quality,
       rating,
       summary: summarizeConditions(rating),
     });
