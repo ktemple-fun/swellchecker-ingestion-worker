@@ -7,7 +7,7 @@ import { insertIngestionData } from "./lib/insertIngestionData.ts";
 import { insertTideObservations } from "./lib/insertTideObservations.ts";
 import { generateSurfOutlook } from './lib/generateSurfOutlook.ts';
 import { cacheSurfOutlook } from './lib/cacheSurfOutlook.ts';
-
+import fetchWindForecast from './parsers/fetchWindForecast.ts';
 
 // Helper to format ISO window
 function getForecastTimeWindow(hoursAhead = 240) {
@@ -32,11 +32,23 @@ serve(async () => {
 
       // 3. Forecast swell data
       const { start, end } = getForecastTimeWindow(240);
-      const forecastData = await fetchSwellForecast(spot.lat, spot.lng, start, end);
-      await insertIngestionData(spot.slug, forecastData);
+      const swellData = await fetchSwellForecast(spot.lat, spot.lng, start, end);
+      const windData = await fetchWindForecast(spot.lat, spot.lng, start, end);
+
+      // Merge by timestamp
+      const merged = swellData.map(entry => {
+        const windMatch = windData.find(w => w.timestamp === entry.timestamp);
+        return {
+          ...entry,
+          wind_speed_mps: windMatch?.wind_speed_mps ?? null,
+          wind_direction: windMatch?.wind_direction ?? null,
+        };
+      });
+
+      await insertIngestionData(spot.slug, merged);
+
 
       // surf outlook 
-
       const outlook = await generateSurfOutlook(spot.slug);
       await cacheSurfOutlook(spot.slug, outlook);
 

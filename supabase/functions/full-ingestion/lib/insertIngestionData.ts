@@ -14,6 +14,8 @@ export async function insertIngestionData(spot_slug: string, data: any[]) {
     wave_direction: item.wave_direction,
     water_temp_c: item.water_temp_c,
     water_temp_f: item.water_temp_f,
+    wind_speed_mps: item.wind_speed_mps ?? null,
+    wind_direction: item.wind_direction ?? null,
   }));
 
   const { error } = await supabase

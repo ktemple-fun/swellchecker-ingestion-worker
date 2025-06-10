@@ -3,7 +3,7 @@
 
 export default async function fetchSwellForecast(lat: number, lng: number, startISO: string, endISO: string) {
   const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}` +
-    `&hourly=wave_height,wave_period,wave_direction,wind_speed_10m,wind_direction_10m` +
+    `&hourly=wave_height,wave_period,wave_direction` +
     `&start=${startISO}&end=${endISO}&timezone=UTC`;
 
   try {
