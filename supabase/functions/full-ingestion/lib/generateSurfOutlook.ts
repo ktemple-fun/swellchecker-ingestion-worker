@@ -451,60 +451,121 @@ export async function generateSurfOutlook(spotSlug: string): Promise<OutlookSegm
 
   const results: OutlookSegment[] = [];
 
+  // for (const [segment, entries] of Object.entries(outlookMap)) {
+  //   let wave_height = entries.reduce((sum, e) => sum + (e.wave_height || 0), 0) / entries.length;
+  //   const wave_period = entries.reduce((sum, e) => sum + (e.wave_period || 0), 0) / entries.length;
+
+  //   wave_height = applyExposureBoost(wave_height, exposure);
+
+  //   const tide_avg = tideMap[segment]?.length
+  //     ? parseFloat((tideMap[segment].reduce((a, b) => a + b, 0) / tideMap[segment].length).toFixed(2))
+  //     : null;
+
+  //   const wind_speeds = entries.map(e => e.wind_speed_mps).filter(Boolean) as number[];
+  //   const wind_dirs = entries.map(e => e.wind_direction).filter(Boolean) as number[];
+
+  //   const wind_speed_avg = wind_speeds.length
+  //     ? parseFloat((wind_speeds.reduce((a, b) => a + b, 0) / wind_speeds.length).toFixed(2))
+  //     : null;
+
+  //   const wind_dir_avg = wind_dirs.length
+  //     ? parseFloat((wind_dirs.reduce((a, b) => a + b, 0) / wind_dirs.length).toFixed(0))
+  //     : null;
+
+  //   const wind_quality = getWindQuality(wind_dir_avg, breakOrientation);
+
+  //   let rating = classifyRating(wave_height, wave_period);
+
+  //   // Adjust rating with wind and tide
+  //   if (tide_avg != null) {
+  //     if (tide_avg >= 2 && tide_avg <= 4 && rating === 'Fair') rating = 'Fair+';
+  //     if ((tide_avg < 0.5 || tide_avg > 5) && rating === 'Fair+') rating = 'Fair';
+  //   }
+
+  //   if (wind_quality === 'Offshore') {
+  //     if (rating === 'Fair+') rating = 'Good';
+  //     else if (rating === 'Fair') rating = 'Fair+';
+  //   } else if (wind_quality === 'Onshore') {
+  //     if (rating === 'Fair+') rating = 'Fair';
+  //     else if (rating === 'Fair') rating = 'Poor+';
+  //   }
+
+  //   // Final adjustment for bathymetry
+  //   rating = adjustRatingForBathymetry(rating, bathymetry);
+
+  //   results.push({
+  //     segment,
+  //     avg_wave_height: parseFloat(wave_height.toFixed(2)),
+  //     avg_wave_period: parseFloat(wave_period.toFixed(2)),
+  //     avg_tide_ft: tide_avg,
+  //     avg_wind_speed: wind_speed_avg,
+  //     avg_wind_direction: wind_dir_avg,
+  //     wind_quality,
+  //     rating,
+  //     summary: summarizeConditions(rating),
+  //   });
+  // }
   for (const [segment, entries] of Object.entries(outlookMap)) {
-    let wave_height = entries.reduce((sum, e) => sum + (e.wave_height || 0), 0) / entries.length;
-    const wave_period = entries.reduce((sum, e) => sum + (e.wave_period || 0), 0) / entries.length;
+  let raw_wave_height = entries.reduce((sum, e) => sum + (e.wave_height || 0), 0) / entries.length;
+  const wave_period = entries.reduce((sum, e) => sum + (e.wave_period || 0), 0) / entries.length;
 
-    wave_height = applyExposureBoost(wave_height, exposure);
+  const adjusted_wave_height = applyExposureBoost(raw_wave_height, exposure);
 
-    const tide_avg = tideMap[segment]?.length
-      ? parseFloat((tideMap[segment].reduce((a, b) => a + b, 0) / tideMap[segment].length).toFixed(2))
-      : null;
+  console.log(`[${spotSlug}] Segment: ${segment}`);
+  console.log(`  Raw Avg Wave Height: ${raw_wave_height.toFixed(2)} ft`);
+  console.log(`  Exposure: ${exposure}`);
+  console.log(`  Adjusted Wave Height: ${adjusted_wave_height.toFixed(2)} ft`);
 
-    const wind_speeds = entries.map(e => e.wind_speed_mps).filter(Boolean) as number[];
-    const wind_dirs = entries.map(e => e.wind_direction).filter(Boolean) as number[];
+  const tide_avg = tideMap[segment]?.length
+    ? parseFloat((tideMap[segment].reduce((a, b) => a + b, 0) / tideMap[segment].length).toFixed(2))
+    : null;
 
-    const wind_speed_avg = wind_speeds.length
-      ? parseFloat((wind_speeds.reduce((a, b) => a + b, 0) / wind_speeds.length).toFixed(2))
-      : null;
+  const wind_speeds = entries.map(e => e.wind_speed_mps).filter(Boolean) as number[];
+  const wind_dirs = entries.map(e => e.wind_direction).filter(Boolean) as number[];
 
-    const wind_dir_avg = wind_dirs.length
-      ? parseFloat((wind_dirs.reduce((a, b) => a + b, 0) / wind_dirs.length).toFixed(0))
-      : null;
+  const wind_speed_avg = wind_speeds.length
+    ? parseFloat((wind_speeds.reduce((a, b) => a + b, 0) / wind_speeds.length).toFixed(2))
+    : null;
 
-    const wind_quality = getWindQuality(wind_dir_avg, breakOrientation);
+  const wind_dir_avg = wind_dirs.length
+    ? parseFloat((wind_dirs.reduce((a, b) => a + b, 0) / wind_dirs.length).toFixed(0))
+    : null;
 
-    let rating = classifyRating(wave_height, wave_period);
+  const wind_quality = getWindQuality(wind_dir_avg, breakOrientation);
 
-    // Adjust rating with wind and tide
-    if (tide_avg != null) {
-      if (tide_avg >= 2 && tide_avg <= 4 && rating === 'Fair') rating = 'Fair+';
-      if ((tide_avg < 0.5 || tide_avg > 5) && rating === 'Fair+') rating = 'Fair';
-    }
+  let rating = classifyRating(adjusted_wave_height, wave_period);
 
-    if (wind_quality === 'Offshore') {
-      if (rating === 'Fair+') rating = 'Good';
-      else if (rating === 'Fair') rating = 'Fair+';
-    } else if (wind_quality === 'Onshore') {
-      if (rating === 'Fair+') rating = 'Fair';
-      else if (rating === 'Fair') rating = 'Poor+';
-    }
-
-    // Final adjustment for bathymetry
-    rating = adjustRatingForBathymetry(rating, bathymetry);
-
-    results.push({
-      segment,
-      avg_wave_height: parseFloat(wave_height.toFixed(2)),
-      avg_wave_period: parseFloat(wave_period.toFixed(2)),
-      avg_tide_ft: tide_avg,
-      avg_wind_speed: wind_speed_avg,
-      avg_wind_direction: wind_dir_avg,
-      wind_quality,
-      rating,
-      summary: summarizeConditions(rating),
-    });
+  // Tide influence
+  if (tide_avg != null) {
+    if (tide_avg >= 2 && tide_avg <= 4 && rating === 'Fair') rating = 'Fair+';
+    if ((tide_avg < 0.5 || tide_avg > 5) && rating === 'Fair+') rating = 'Fair';
   }
+
+  // Wind influence
+  if (wind_quality === 'Offshore') {
+    if (rating === 'Fair+') rating = 'Good';
+    else if (rating === 'Fair') rating = 'Fair+';
+  } else if (wind_quality === 'Onshore') {
+    if (rating === 'Fair+') rating = 'Fair';
+    else if (rating === 'Fair') rating = 'Poor+';
+  }
+
+  // Bathymetry influence
+  rating = adjustRatingForBathymetry(rating, bathymetry);
+
+  results.push({
+    segment,
+    avg_wave_height: parseFloat(adjusted_wave_height.toFixed(2)),
+    avg_wave_period: parseFloat(wave_period.toFixed(2)),
+    avg_tide_ft: tide_avg,
+    avg_wind_speed: wind_speed_avg,
+    avg_wind_direction: wind_dir_avg,
+    wind_quality,
+    rating,
+    summary: summarizeConditions(rating),
+  });
+}
+
 
   return results;
 }
