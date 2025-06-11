@@ -75,7 +75,15 @@
 //     return [];
 //   }
 // }
-export default async function fetchSwellForecast(lat: number, lng: number, startISO: string, endISO: string) {
+import { supabase } from './supabaseClient.ts';
+
+export default async function fetchSwellForecast(
+  lat: number,
+  lng: number,
+  startISO: string,
+  endISO: string,
+  spotSlug?: string // optional for logging
+) {
   const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}` +
     `&hourly=wave_height,wave_period,wave_direction` +
     `&start=${startISO}&end=${endISO}&timezone=UTC`;
@@ -98,12 +106,15 @@ export default async function fetchSwellForecast(lat: number, lng: number, start
 
     const metersToFeet = (m: number) => m * 3.28084;
 
-    // Log preview of raw and converted wave height
-    console.log("🌊 Sample Wave Heights (first 5):");
-    for (let i = 0; i < Math.min(5, wave_height.length); i++) {
-      const raw = wave_height[i];
-      const feet = metersToFeet(raw);
-      console.log(`  Hour ${i + 1}: ${raw.toFixed(2)} m → ${feet.toFixed(2)} ft`);
+    // ✅ Insert logs for the first 5 entries (optional)
+    if (spotSlug) {
+      for (let i = 0; i < Math.min(5, wave_height.length); i++) {
+        await supabase.from('forecast_debug_log').insert({
+          spot_slug: spotSlug,
+          raw_wave_height_meters: wave_height[i],
+          converted_wave_height_feet: metersToFeet(wave_height[i])
+        });
+      }
     }
 
     const parsed = time.map((timestamp: string, i: number) => ({
@@ -113,7 +124,6 @@ export default async function fetchSwellForecast(lat: number, lng: number, start
       wave_direction: wave_direction?.[i] ?? null,
     }));
 
-    console.log(`✅ Parsed ${parsed.length} forecast rows`);
     return parsed;
   } catch (err) {
     console.error("❌ Error fetching swell forecast:", err);
