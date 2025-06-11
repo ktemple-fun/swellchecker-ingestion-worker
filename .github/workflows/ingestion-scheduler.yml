@@ -2,7 +2,7 @@ name: Scheduled Ingestion
 
 on:
   schedule:
-  - cron: '*/45 * * * *' 
+  - cron: '*/10 * * * *' 
   workflow_dispatch:  # Allow manual trigger too
 
 jobs:

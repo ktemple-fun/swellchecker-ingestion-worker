@@ -36,6 +36,8 @@ export async function cacheSurfOutlook(spot_slug: string, outlook: OutlookSegmen
     updated_at: new Date().toISOString(),
   }));
 
+  console.log('avg_wave_height', avg_wave_height);
+
   const { error } = await supabase
     .from("surf_outlook_summaries")
     .upsert(payload, {
