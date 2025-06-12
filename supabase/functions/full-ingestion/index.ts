@@ -113,7 +113,7 @@ serve(async () => {
   try {
     for (const spot of surfSpots) {
       try {
-        console.log(`🌊 Starting ingestion for ${spot.slug}`);
+        console.log(`🌊 Starting ingestion for testing testing ${spot.slug}`);
 
         // 1. Real-time buoy data
         const ndbcData = await fetchNdbcData(spot.buoy);
