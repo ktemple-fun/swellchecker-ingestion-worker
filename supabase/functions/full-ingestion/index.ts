@@ -146,7 +146,12 @@ serve(async () => {
           const t = normalizeTimestampToHour(s.timestamp);
           return !windData.some(w => normalizeTimestampToHour(w.timestamp) === t);
         });
-        console.log(`🔎 ${spot.slug}: ${unmatched.length} swell records without matching wind`);
+
+        await supabase.from('forecast_debug_log').insert({
+          spot_slug: spot.slug,
+          message: `🔎 ${unmatched.length} unmatched wind records out of ${swellData.length} swell entries`,
+          timestamp: new Date().toISOString(), // if needed
+        });
 
         // 5. Save merged forecast data
         await insertIngestionData(spot.slug, merged, 'forecast');
