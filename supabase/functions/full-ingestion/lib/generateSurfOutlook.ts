@@ -1,5 +1,8 @@
-import { supabase } from './supabaseClient.ts';
 import { surfSpots } from './surfSpots';
+import { supabase } from './supabaseClient.ts';
+import fetchNdbcData from './fetchNdbcData.ts';
+
+// Types
 
 type Rating = 'Poor' | 'Poor+' | 'Fair' | 'Fair+' | 'Good';
 type WindQuality = 'Offshore' | 'Onshore' | 'Sideshore';
@@ -31,6 +34,8 @@ interface OutlookSegment {
   summary: string;
 }
 
+// Utility Functions
+
 function classifyRating(height: number, period: number): Rating {
   if (height >= 1.5 && period >= 13) return 'Good';
   if (height >= 1.2 && period >= 11) return 'Fair+';
@@ -57,6 +62,10 @@ function getWindQuality(windDir: number | null, breakOrientation = 270): WindQua
   return 'Sideshore';
 }
 
+function applyShoaling(heightFt: number): number {
+  return parseFloat((heightFt * 1.35).toFixed(2));
+}
+
 function applyExposureBoost(height: number, exposure: Exposure): number {
   switch (exposure) {
     case 'low': return height * 0.7;
@@ -66,49 +75,45 @@ function applyExposureBoost(height: number, exposure: Exposure): number {
   }
 }
 
-function applyShoaling(heightFt: number): number {
-  return parseFloat((heightFt * 1.35).toFixed(2));
-}
-
 function adjustRatingForBathymetry(rating: Rating, bathymetry: Bathymetry): Rating {
   const order: Rating[] = ['Poor', 'Poor+', 'Fair', 'Fair+', 'Good'];
   const index = order.indexOf(rating);
-  if (bathymetry === 'canyon' && index < order.length - 1) {
-    return order[index + 1];
-  } else if (bathymetry === 'steep') {
-    return order[index];
-  } else if (bathymetry === 'shelf' && index > 0) {
-    return order[index - 1];
-  }
+  if (bathymetry === 'canyon' && index < order.length - 1) return order[index + 1];
+  if (bathymetry === 'shelf' && index > 0) return order[index - 1];
   return rating;
 }
 
-export async function generateSurfOutlook(spotSlug: string): Promise<OutlookSegment[]> {
-  const now = new Date().toISOString();
+// Fetch and Generate
 
+export async function generateSurfOutlook(spotSlug: string): Promise<OutlookSegment[]> {
+  const now = new Date();
   const spot = surfSpots.find((s) => s.slug === spotSlug);
   if (!spot) return [];
 
   const breakOrientation = spot.facingDirection;
   const exposure = spot.exposure as Exposure;
   const bathymetry = spot.bathymetry as Bathymetry;
+  const buoyStation = spot.buoy;
 
-  const { data: forecast } = await supabase
-    .from('surf_ingestion_data')
-    .select('timestamp, wave_height, wave_period, wind_speed_mps, wind_direction')
-    .eq('spot_slug', spotSlug)
-    .gte('timestamp', now);
-
-  const { data: tide } = await supabase
-    .from('tide_observation')
-    .select('timestamp, tide_ft')
-    .eq('location_slug', spotSlug)
-    .gte('timestamp', now);
+  const [{ data: forecast }, { data: tide }, buoyRaw] = await Promise.all([
+    supabase
+      .from('surf_ingestion_data')
+      .select('timestamp, wave_height, wave_period, wind_speed_mps, wind_direction')
+      .eq('spot_slug', spotSlug)
+      .gte('timestamp', now.toISOString()),
+    supabase
+      .from('tide_observation')
+      .select('timestamp, tide_ft')
+      .eq('location_slug', spotSlug)
+      .gte('timestamp', now.toISOString()),
+    fetchNdbcData(buoyStation),
+  ]);
 
   if (!forecast?.length) return [];
 
   const outlookMap: Record<string, ForecastEntry[]> = {};
   const tideMap: Record<string, number[]> = {};
+  const buoyMap: Record<string, number[]> = {};
 
   for (const entry of forecast) {
     const dt = new Date(entry.timestamp);
@@ -132,14 +137,31 @@ export async function generateSurfOutlook(spotSlug: string): Promise<OutlookSegm
     tideMap[key].push(t.tide_ft);
   }
 
+  for (const b of buoyRaw || []) {
+    const dt = new Date(b.timestamp);
+    const hour = dt.getUTCHours();
+    const dateStr = dt.toISOString().split('T')[0];
+    const part = hour >= 6 && hour < 12 ? 'AM' : hour >= 12 && hour < 18 ? 'PM' : null;
+    if (!part) continue;
+    const key = `${dateStr} ${part}`;
+    buoyMap[key] ||= [];
+    buoyMap[key].push(b.wave_height);
+  }
+
   const results: OutlookSegment[] = [];
 
   for (const [segment, entries] of Object.entries(outlookMap)) {
     const raw_wave_height = entries.reduce((sum, e) => sum + (e.wave_height || 0), 0) / entries.length;
     const wave_period = entries.reduce((sum, e) => sum + (e.wave_period || 0), 0) / entries.length;
 
-    const exposure_boosted = applyExposureBoost(raw_wave_height, exposure);
-    const adjusted_wave_height = applyShoaling(exposure_boosted);
+    let adjusted_wave_height = applyShoaling(raw_wave_height);
+    adjusted_wave_height = applyExposureBoost(adjusted_wave_height, exposure);
+
+    const buoyHeights = buoyMap[segment];
+    if (buoyHeights?.length) {
+      const avgBuoy = buoyHeights.reduce((a, b) => a + b, 0) / buoyHeights.length;
+      adjusted_wave_height = (adjusted_wave_height + avgBuoy) / 2;
+    }
 
     const tide_avg = tideMap[segment]?.length
       ? parseFloat((tideMap[segment].reduce((a, b) => a + b, 0) / tideMap[segment].length).toFixed(2))
