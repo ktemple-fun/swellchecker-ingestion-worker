@@ -153,6 +153,15 @@ serve(async () => {
           timestamp: new Date().toISOString(), // if needed
         });
 
+        await supabase.from("surf_ingestion_data").insert({
+  spot_slug: "manual-test",
+  timestamp: new Date().toISOString(),
+  wave_height: 1.23,
+  wave_period: 9,
+  source: "forecast"
+});
+
+
         // 5. Save merged forecast data
         await insertIngestionData(spot.slug, merged, 'forecast');
 
