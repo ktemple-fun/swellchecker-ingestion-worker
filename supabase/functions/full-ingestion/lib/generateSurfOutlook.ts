@@ -1,8 +1,8 @@
-import { surfSpots } from './surfSpots';
 import { supabase } from './supabaseClient.ts';
+import { surfSpots } from './surfSpots';
 import fetchNdbcData from './fetchNdbcData.ts';
 
-// Types
+// Type definitions
 
 type Rating = 'Poor' | 'Poor+' | 'Fair' | 'Fair+' | 'Good';
 type WindQuality = 'Offshore' | 'Onshore' | 'Sideshore';
@@ -34,13 +34,13 @@ interface OutlookSegment {
   summary: string;
 }
 
-// Utility Functions
+// Helpers
 
 function classifyRating(height: number, period: number): Rating {
-  if (height >= 1.5 && period >= 13) return 'Good';
-  if (height >= 1.2 && period >= 11) return 'Fair+';
-  if (height >= 1.0 && period >= 10) return 'Fair';
-  if (height >= 0.7 && period >= 8) return 'Poor+';
+  if (height >= 5 && period >= 13) return 'Good';
+  if (height >= 4 && period >= 11) return 'Fair+';
+  if (height >= 3 && period >= 9) return 'Fair';
+  if (height >= 2 && period >= 7) return 'Poor+';
   return 'Poor';
 }
 
@@ -75,6 +75,10 @@ function applyExposureBoost(height: number, exposure: Exposure): number {
   }
 }
 
+function convertToFaceHeight(heightFt: number): number {
+  return parseFloat((heightFt * 1.8).toFixed(2));
+}
+
 function adjustRatingForBathymetry(rating: Rating, bathymetry: Bathymetry): Rating {
   const order: Rating[] = ['Poor', 'Poor+', 'Fair', 'Fair+', 'Good'];
   const index = order.indexOf(rating);
@@ -82,8 +86,6 @@ function adjustRatingForBathymetry(rating: Rating, bathymetry: Bathymetry): Rati
   if (bathymetry === 'shelf' && index > 0) return order[index - 1];
   return rating;
 }
-
-// Fetch and Generate
 
 export async function generateSurfOutlook(spotSlug: string): Promise<OutlookSegment[]> {
   const now = new Date();
@@ -100,7 +102,8 @@ export async function generateSurfOutlook(spotSlug: string): Promise<OutlookSegm
       .from('surf_ingestion_data')
       .select('timestamp, wave_height, wave_period, wind_speed_mps, wind_direction')
       .eq('spot_slug', spotSlug)
-      .gte('timestamp', now.toISOString()),
+      .gte('timestamp', now.toISOString())
+      .order('timestamp'),
     supabase
       .from('tide_observation')
       .select('timestamp, tide_ft')
@@ -163,6 +166,8 @@ export async function generateSurfOutlook(spotSlug: string): Promise<OutlookSegm
       adjusted_wave_height = (adjusted_wave_height + avgBuoy) / 2;
     }
 
+    const surf_face_height = convertToFaceHeight(adjusted_wave_height);
+
     const tide_avg = tideMap[segment]?.length
       ? parseFloat((tideMap[segment].reduce((a, b) => a + b, 0) / tideMap[segment].length).toFixed(2))
       : null;
@@ -180,7 +185,7 @@ export async function generateSurfOutlook(spotSlug: string): Promise<OutlookSegm
 
     const wind_quality = getWindQuality(wind_dir_avg, breakOrientation);
 
-    let rating = classifyRating(adjusted_wave_height, wave_period);
+    let rating = classifyRating(surf_face_height, wave_period);
 
     if (tide_avg != null) {
       if (tide_avg >= 2 && tide_avg <= 4 && rating === 'Fair') rating = 'Fair+';
@@ -199,7 +204,7 @@ export async function generateSurfOutlook(spotSlug: string): Promise<OutlookSegm
 
     results.push({
       segment,
-      avg_wave_height: parseFloat(adjusted_wave_height.toFixed(2)),
+      avg_wave_height: surf_face_height,
       avg_wave_period: parseFloat(wave_period.toFixed(2)),
       avg_tide_ft: tide_avg,
       avg_wind_speed: wind_speed_avg,
