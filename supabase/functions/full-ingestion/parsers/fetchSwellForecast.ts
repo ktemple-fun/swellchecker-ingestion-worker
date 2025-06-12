@@ -123,6 +123,9 @@ export default async function fetchSwellForecast(
       wave_period: wave_period?.[i] ?? null,
       wave_direction: wave_direction?.[i] ?? null,
     }));
+    
+    console.log("✅ Local Edge Function is running!");
+
 
     return parsed;
   } catch (err) {

@@ -2,3 +2,6 @@
 ref = "uepdfmirixjeftqawhns"
 [functions]
 backend = "deno"
+
+[db]
+image = "supabase/postgres:15.1.0"
