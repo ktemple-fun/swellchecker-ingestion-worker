@@ -36,16 +36,14 @@ export async function cacheSurfOutlook(spot_slug: string, outlook: OutlookSegmen
     updated_at: new Date().toISOString(),
   }));
 
-  console.log('avg_wave_height', avg_wave_height);
-
   const { error } = await supabase
     .from("surf_outlook_summaries")
     .upsert(payload, {
       onConflict: ["spot_slug", "segment"],
     });
 
-  if (error) {
-    console.error("❌ Failed to cache surf outlook:", error);
+  if (error && (error.message || error.details || error.hint)) {
+    console.error("❌ Failed to upsert surf outlook summaries:", error);
   } else {
     console.log(`✅ Cached ${payload.length} surf outlook summaries`);
   }
