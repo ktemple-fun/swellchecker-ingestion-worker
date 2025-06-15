@@ -2,7 +2,7 @@
 export default function parseNdbcText(rawText: string) {
 
   // convert meters to ft 
-  
+
   const metersToFeet = (m: number) => m * 3.28084;
 
   const lines = rawText.split("\n");
@@ -29,7 +29,7 @@ export default function parseNdbcText(rawText: string) {
 
     return {
       timestamp,
-      wave_height: waveHeight !== "MM" ? metersToSurfFaceFeet(parseFloat(waveHeight)) : null,
+      wave_height: waveHeight !== "MM" ? metersToFeet(parseFloat(waveHeight)) : null,
       wave_period: wavePeriod !== "MM" ? parseFloat(wavePeriod) : null,
       wave_direction: waveDirection !== "MM" ? parseInt(waveDirection) : null,
       water_temp_c: waterTempC !== "MM" ? parseFloat(waterTempC) : null,

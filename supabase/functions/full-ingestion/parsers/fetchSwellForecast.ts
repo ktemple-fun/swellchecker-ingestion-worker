@@ -32,7 +32,7 @@ export default async function fetchSwellForecast(
 
     const parsed = time.map((timestamp: string, i: number) => ({
       timestamp,
-      wave_height: wave_height[i] != null ? metersToSurfFaceFeet(wave_height[i]) : null,
+      wave_height: wave_height[i] != null ? metersToFeet(wave_height[i]) : null,
       wave_period: wave_period?.[i] ?? null,
       wave_direction: wave_direction?.[i] ?? null,
     }));
