@@ -26,8 +26,8 @@ export default async function fetchSwellForecast(
       return [];
     }
 
-    // Convert to surf face height: meters -> feet -> face height (approx. 1.8x)
-    const metersToSurfFaceFeet = (m: number) => m * 3.28084 * 1.7;
+    // Convert meters -> feet 
+    const metersToFeet = (m: number) => m * 3.28084;
 
 
     const parsed = time.map((timestamp: string, i: number) => ({

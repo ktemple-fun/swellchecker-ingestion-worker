@@ -1,6 +1,9 @@
 
 export default function parseNdbcText(rawText: string) {
-  const metersToSurfFaceFeet = (m: number) => m * 3.28084 * 1.7;
+
+  // convert meters to ft 
+  
+  const metersToFeet = (m: number) => m * 3.28084;
 
   const lines = rawText.split("\n");
   const dataLines = lines.slice(2);  // skip headers
