@@ -14,9 +14,19 @@ export default async function fetchNdbcData(buoy: string) {
     }
 
     const textData = await response.text();
+
     const parsedData = parseNdbcText(textData);
+
+    console.log(`📊 Parsed ${parsedData.length} NDBC entries for buoy ${buoy}`);
+    parsedData.forEach(e => {
+      if (!e.timestamp) console.warn(`⚠️ Bad timestamp row:`, e);
+    });
+
+
     const cleanData = parsedData.filter(item => item.timestamp);
+
     return cleanData;
+
   } catch (err) {
     console.error("❌ Error fetching NDBC data:", err);
     return [];

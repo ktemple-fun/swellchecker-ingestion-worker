@@ -1,4 +1,3 @@
-
 import { supabase } from './supabaseClient.ts';
 
 interface OutlookSegment {
@@ -11,7 +10,10 @@ interface OutlookSegment {
   wind_quality: 'Offshore' | 'Onshore' | 'Sideshore';
   rating: string;
   summary: string;
+  timestamp_utc?: string;       
+  timestamp_pacific?: string;    
 }
+
 
 export async function cacheSurfOutlook(spot_slug: string, outlook: OutlookSegment[]) {
   if (!outlook.length) {
@@ -19,28 +21,48 @@ export async function cacheSurfOutlook(spot_slug: string, outlook: OutlookSegmen
     return;
   }
 
-  const payload = outlook.map((item) => ({
-    spot_slug,
-    segment: item.segment,
-    date: item.segment.split(' ')[0],
-    part_of_day: item.segment.includes('AM') ? 'AM' : 'PM',
-    avg_wave_height: item.avg_wave_height,
-    avg_wave_period: item.avg_wave_period,
-    avg_tide_ft: item.avg_tide_ft ?? null,
-    avg_wind_speed_mps: item.avg_wind_speed ?? null,
-    avg_wind_direction: item.avg_wind_direction ?? null,
-    wind_quality: item.wind_quality,
-    rating: item.rating,
-    quality: item.rating, // fallback for legacy use
-    summary: item.summary,
-    updated_at: new Date().toISOString(),
-  }));
+  const payload = outlook
+    .filter((item) => {
+      const valid = item && typeof item.segment === 'string' && item.segment.includes(' ');
+      if (!valid) console.error("❌ Skipping invalid outlook segment:", item);
+      return valid;
+    })
+    .map((item) => {
+      const [date, part] = item.segment.split(' ');
+      return {
+        spot_slug,
+        segment: item.segment,
+        date,
+        part_of_day: part === 'AM' || part === 'PM' ? part : null,
+        avg_wave_height: item.avg_wave_height,
+        avg_wave_period: item.avg_wave_period,
+        avg_tide_ft: item.avg_tide_ft ?? null,
+        avg_wind_speed_mps: item.avg_wind_speed ?? null,
+        avg_wind_direction: item.avg_wind_direction ?? null,
+        wind_quality: item.wind_quality,
+        rating: item.rating,
+        quality: item.rating, // fallback for legacy use
+        timestamp_utc: item.timestamp_utc ?? null,        // 🆕 add this
+        timestamp_pacific: item.timestamp_pacific ?? null, // 🆕 add this
+        summary: item.summary,
+        updated_at: new Date().toISOString(),
+      };
+    });
+
+  if (!payload.length) {
+    console.error("❌ No valid outlook segments after filtering. Aborting cache operation.");
+    return;
+  }
+  
+      console.log(JSON.stringify(payload, null, 2)); // add this line before upsert
 
   const { error } = await supabase
     .from("surf_outlook_summaries")
     .upsert(payload, {
       onConflict: ["spot_slug", "segment"],
     });
+
+
 
   if (error && (error.message || error.details || error.hint)) {
     console.error("❌ Failed to upsert surf outlook summaries:", error);
