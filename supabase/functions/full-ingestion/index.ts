@@ -178,15 +178,28 @@ serve(async () => {
         await insertIngestionData(spot.slug, ndbcData, 'buoy');
 
         // 2. Tide observations
+        // 2. Tide observations
         const tideData = await fetchTideData(spot.tideStation);
-        if (!Array.isArray(tideData) || tideData.length === 0) {
+
+        if (!tideData.length) {
           console.warn(`⚠️ Skipping tide insertion for ${spot.slug}: No valid tide data`);
         } else {
           await insertTideObservations({
             station_id: spot.tideStation,
             observations: tideData
+              // only keep entries with a parsed tideHeight
+              .filter(o => typeof o.tideHeight === 'number')
+              // map into the shape our DB expects
+              .map(o => ({
+                spot_slug: spot.slug,
+                station_id: spot.tideStation,
+                timestamp_utc: o.timestampUtc,                     // use the parser’s ISO timestamp
+                height_ft: Number((o.tideHeight * 3.28084).toFixed(2)), // convert m→ft
+              })),
           });
         }
+
+
 
         // 3. Forecast ingestion
         if (spot.lat == null || spot.lng == null) {

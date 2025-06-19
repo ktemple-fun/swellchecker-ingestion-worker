@@ -54,7 +54,7 @@ export async function insertTideObservations({
   console.info(`📅 Inserting ${payload.length} tide observations for station ${station_id}`);
 
   const { error } = await supabase
-    .from('tide_observations')
+    .from('tide_observation')
     .upsert(payload, {
       onConflict: ['station_id', 'timestamp_utc']
     });

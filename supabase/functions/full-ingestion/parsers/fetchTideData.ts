@@ -48,6 +48,10 @@
 // fetchTideData.ts (fixed NOAA error handling and safe response parsing)
 
 // fetchTideData.ts
+
+
+
+
 import { toPacificTime } from './time.ts';
 
 export async function fetchTideData(stationId: string) {
@@ -76,7 +80,7 @@ export async function fetchTideData(stationId: string) {
       return {
         timestampUtc: utcDate.toISOString(),
         timestampPacific: pacificDate.toISOString(),
-        tideHeight: parseFloat(entry.v)
+        height_ft: parseFloat(entry.v)
       };
     });
 

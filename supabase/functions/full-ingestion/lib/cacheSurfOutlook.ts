@@ -16,6 +16,9 @@ interface OutlookSegment {
 
 
 export async function cacheSurfOutlook(spot_slug: string, outlook: OutlookSegment[]) {
+
+  console.log(`[cacheSurfOutlook] received ${outlook.length} segments for ${spot_slug}`);
+
   if (!outlook.length) {
     console.warn("⚠️ No outlook data to cache.");
     return;
