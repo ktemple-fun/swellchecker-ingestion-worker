@@ -1,87 +1,78 @@
+// lib/parsers/parseNdbcText.ts
+import { toPacificTime } from './time.ts';
 
-// export default function parseNdbcText(rawText: string) {
+/* ----------  Types  ---------- */
 
-//   // convert meters to ft 
+export interface NdbcEntry {
+  /* ISO timestamps */
+  timestamp        : string;         // "YYYY-MM-DDTHH:MM" – Pacific, no offset (legacy)
+  timestamp_pacific : string;         // full ISO with -07:00 / -08:00 offset
+  timestamp_utc     : string;         // full ISO with Z suffix
 
-//   const metersToFeet = (m: number) => m * 3.28084;
-
-//   const lines = rawText.split("\n");
-//   const dataLines = lines.slice(2);  // skip headers
-
-//   const parsed = dataLines.map(line => {
-//     const parts = line.trim().split(/\s+/);
-//     if (parts.length < 15) return null;
-
-//     const [year, month, day, hour, minute] = parts;
-
-//     const timestamp = new Date(
-//       Number(year),
-//       Number(month) - 1,
-//       Number(day),
-//       Number(hour),
-//       Number(minute)
-//     ).toISOString();
-
-//     const waveHeight = parts[8];
-//     const wavePeriod = parts[9];
-//     const waveDirection = parts[11];
-//     const waterTempC = parts[14];
-
-//     return {
-//       timestamp,
-//       wave_height: waveHeight !== "MM" ? metersToFeet(parseFloat(waveHeight)) : null,
-//       wave_period: wavePeriod !== "MM" ? parseFloat(wavePeriod) : null,
-//       wave_direction: waveDirection !== "MM" ? parseInt(waveDirection) : null,
-//       water_temp_c: waterTempC !== "MM" ? parseFloat(waterTempC) : null,
-//       water_temp_f: waterTempC !== "MM" ? parseFloat(waterTempC) * 9/5 + 32 : null,
-//     };
-//   }).filter(Boolean);
-
-//   return parsed;
-// }
-
-// parseNdbcText.ts
-// parseNdbcText.ts
-interface NdbcEntry {
-  timestamp: string;
-  timestampUtc: string;
-  wave_height: number | null;
-  wave_period: number | null;
-  wave_direction: number | null;
-  water_temp_c?: number | null;
-  water_temp_f?: number | null;
+  /* Buoy data */
+  wave_height    : number | null;    // feet
+  wave_period    : number | null;    // seconds
+  wave_direction : number | null;    // degrees
+  water_temp_c   : number | null;    // °C
+  water_temp_f   : number | null;    // °F
 }
+
+/* ----------  Main parser  ---------- */
 
 export default function parseNdbcText(rawText: string): NdbcEntry[] {
   const metersToFeet = (m: number) => m * 3.28084;
 
-  const lines = rawText.split("\n");
-  const dataLines = lines.slice(2); // skip headers
+  const lines     = rawText.split('\n');
+  const dataLines = lines.slice(2);         // skip the two header rows
 
-  const parsed = dataLines.map(line => {
-    const parts = line.trim().split(/\s+/);
-    if (parts.length < 15) return null;
+  const parsed = dataLines
+    .map(line => {
+      const parts = line.trim().split(/\s+/);
+      if (parts.length < 15) return null;
 
-    const [YY, MM, DD, hh, mm, , , , WVHT, DPD, , MWD, , , WTMP] = parts;
+      // YY  MM DD hh mm  ... WVHT DPD ... MWD ... WTMP
+      const [YY, MM, DD, hh, mm,
+             , , ,
+             WVHT, DPD,
+             , MWD,
+             , ,
+             WTMP] = parts;
 
-    // Reject any row with missing time or core data
-    if ([YY, MM, DD, hh, mm, WVHT, DPD, MWD].includes("MM")) return null;
+      // Skip rows with missing essential fields
+      if ([YY, MM, DD, hh, mm, WVHT, DPD, MWD].includes('MM')) return null;
 
-    const year = parseInt(YY.length === 2 ? `20${YY}` : YY);
-    const timestampObj = new Date(Date.UTC(year, Number(MM) - 1, Number(DD), Number(hh), Number(mm)));
+      /* ---- Timestamp ---- NDBC gives times in GMT */
+      const year = parseInt(YY.length === 2 ? `20${YY}` : YY, 10);
+      const utcDate = new Date(Date.UTC(
+        year,
+        Number(MM) - 1,
+        Number(DD),
+        Number(hh),
+        Number(mm)
+      ));
+      if (isNaN(utcDate.getTime())) return null;
 
-    if (isNaN(timestampObj.getTime())) return null;
+      const pacificDate = toPacificTime(utcDate);
 
-    return {
-      timestamp: timestampObj.toISOString(),          // general field
-      timestampUtc: timestampObj.toISOString(),       // required field for Supabase insert
-      wave_height: WVHT !== "MM" ? metersToFeet(parseFloat(WVHT)) : null,
-      wave_period: DPD !== "MM" ? parseFloat(DPD) : null,
-      wave_direction: MWD !== "MM" ? parseInt(MWD) : null,
-      water_temp_c: WTMP !== "MM" ? parseFloat(WTMP) : null,
-      water_temp_f: WTMP !== "MM" ? parseFloat(WTMP) * 9 / 5 + 32 : null
-    };
-  }).filter((entry): entry is NdbcEntry => entry !== null);
+      return {
+        /* Time fields */
+        timestamp        : pacificDate.toISOString().slice(0, 16), // "YYYY-MM-DDTHH:MM"
+        timestamp_pacific : pacificDate.toISOString(),              // with offset
+        timestamp_utc     : utcDate.toISOString(),
+
+        /* Data fields */
+        wave_height    : WVHT !== 'MM' ? metersToFeet(parseFloat(WVHT)) : null,
+        wave_period    : DPD  !== 'MM' ? parseFloat(DPD)               : null,
+        wave_direction : MWD  !== 'MM' ? parseInt(MWD, 10)             : null,
+
+        water_temp_c   : WTMP !== 'MM' ? parseFloat(WTMP)              : null,
+        water_temp_f   : WTMP !== 'MM'
+                           ? parseFloat(WTMP) * 9/5 + 32
+                           : null,
+      };
+    })
+    // Type predicate: keep only the fully-formed objects
+    .filter((e): e is NdbcEntry => e !== null);
 
   return parsed;
 }

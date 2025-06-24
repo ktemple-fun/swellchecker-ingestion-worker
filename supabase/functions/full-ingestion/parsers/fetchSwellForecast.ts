@@ -1,144 +1,89 @@
+// parsers/fetchSwellForecast.ts
+import {
+  zonedTimeToUtc,
+  formatInTimeZone,
+} from 'npm:date-fns-tz@2.0.0';
 
-// export default async function fetchSwellForecast(
-//   lat: number,
-//   lng: number,
-//   startISO: string,
-//   endISO: string,
-//   spotSlug?: string // optional for logging
-// ) {
-//   const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}` +
-//     `&hourly=wave_height,wave_period,wave_direction` +
-//     `&start=${startISO}&end=${endISO}&timezone=UTC`;
+export interface SwellRow {
+  /* time */
+  timestamp: string;  // "YYYY-MM-DDTHH:MM"  (Pacific, no offset)
+  timestamp_pacific: string;  // ISO 8601 with −07:00 / −08:00
+  timestamp_utc: string;  // ISO 8601 Z
 
-//   try {
-//     const res = await fetch(url);
-//     if (!res.ok) {
-//       const message = await res.text();
-//       console.error(`❌ Open-Meteo fetch failed: ${res.status} - ${message}`);
-//       return [];
-//     }
+  /* data */
+  wave_height: number | null;  // ft
+  wave_period: number | null;  // s
+  wave_direction: number | null;  // °
+}
 
-//     const json = await res.json();
-//     const { time, wave_height, wave_direction, wave_period } = json.hourly;
-
-//     if (!time?.length || !wave_height?.length) {
-//       console.warn("⚠️ No hourly wave data returned.");
-//       return [];
-//     }
-
-//     // Convert meters -> feet 
-//     const metersToFeet = (m: number) => m * 3.28084;
-
-
-//     const parsed = time.map((timestamp: string, i: number) => ({
-//       timestamp,
-//       wave_height: wave_height[i] != null ? metersToFeet(wave_height[i]) : null,
-//       wave_period: wave_period?.[i] ?? null,
-//       wave_direction: wave_direction?.[i] ?? null,
-//     }));
-
-//     console.log(`✅ Parsed ${parsed.length} forecast rows`);
-//     return parsed;
-//   } catch (err) {
-//     console.error("❌ Error fetching swell forecast:", err);
-//     return [];
-//   }
-// }
-
-
-// import { toPacificTime } from './time.ts';
-
-// export async function fetchSwellForecast(spot: any) {
-//   const response = await fetch(`https://api.your-forecast-provider.com/swell?lat=${spot.lat}&lon=${spot.lng}`);
-//   const data = await response.json();
-
-//   return data.forecast.map((entry: any) => {
-//     const utcTime = new Date(entry.timestamp);
-//     const pacificTime = toPacificTime(utcTime);
-
-//     return {
-//       timestamp: utcTime.toISOString(), // keep in UTC
-//       localTimeISO: pacificTime.toISOString(), // optional for debugging
-//       components: entry.components // assuming components is already formatted
-//     };
-//   });
-// }
-
-
-// import { toPacificTime } from './time.ts';
-
-// export async function fetchSwellForecast({ lat, lon }: { lat: number; lon: number }) {
-//   const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&hourly=wave_height,wave_period,wave_direction,wave_direction_mean,wave_direction_dominant&timezone=UTC`;
-
-//   const response = await fetch(url);
-//   const data = await response.json();
-
-//   if (!data?.hourly?.time || !data?.hourly?.wave_height) {
-//     console.error('❌ Invalid swell forecast response from Open-Meteo:', data);
-//     return [];
-//   }
-
-//   return data.hourly.time.map((time: string, i: number) => {
-//     const timestamp = new Date(time + 'Z');
-//     const pacificTime = toPacificTime(timestamp);
-
-//     return {
-//       timestamp: timestamp.toISOString(),
-//       localTimeISO: pacificTime.toISOString(),
-//       components: {
-//         wave_height_m: data.hourly.wave_height[i],
-//         wave_period_s: data.hourly.wave_period[i],
-//         wave_direction: data.hourly.wave_direction[i],
-//         wave_direction_dominant: data.hourly.wave_direction_dominant[i],
-//       },
-//     };
-//   });
-// }
 export async function fetchSwellForecast({
   lat,
   lng,
-  start,
-  end
+  start,   // YYYY-MM-DD
+  end,     // YYYY-MM-DD
 }: {
   lat: number;
   lng: number;
   start: string;
   end: string;
-}) {
-  
-const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}` +
-  `&hourly=wave_height,wave_period,wave_direction` +
-  `&start=${start}&end=${end}&timezone=UTC`;
+}): Promise<SwellRow[]> {
+
+  const url =
+    `https://marine-api.open-meteo.com/v1/marine` +
+    `?latitude=${lat}&longitude=${lng}` +
+    `&hourly=swell_wave_height,swell_wave_period,swell_wave_direction` +
+    `&start_date=${start}&end_date=${end}` +
+    `&timezone=America/Los_Angeles` +
+    `&cell_selection=sea`;
 
   try {
     const res = await fetch(url);
     if (!res.ok) {
-      const message = await res.text();
-      console.error(`❌ Open-Meteo fetch failed: ${res.status} - ${message}`);
+      console.error(`❌ Open-Meteo swell fetch failed ${res.status}: ${await res.text()}`);
       return [];
     }
 
-    const json = await res.json();
-    const { time, wave_height, wave_direction, wave_period } = json.hourly;
+    const { hourly } = await res.json() as {
+      hourly: {
+        time: string[];
+        swell_wave_height: (number | null)[];
+        swell_wave_period: (number | null)[];
+        swell_wave_direction: (number | null)[];
+      };
+    };
 
-    if (!time?.length || !wave_height?.length) {
-      console.warn("⚠️ No hourly wave data returned.");
-      return [];
-    }
+    if (!hourly?.time?.length) return [];
 
-    const metersToFeet = (m: number) => m * 3.28084;
+    const mToFt = (m: number) => m * 3.28084;
 
-    const parsed = time.map((timestamp: string, i: number) => ({
-      timestamp,
-      wave_height: wave_height[i] != null ? metersToFeet(wave_height[i]) : null,
-      wave_period: wave_period?.[i] ?? null,
-      wave_direction: wave_direction?.[i] ?? null,
-    }));
+    return hourly.time.map((local, i) => {
+      /* Treat “local” as Pacific clock time (no offset) */
+      const utcDate = zonedTimeToUtc(local, 'America/Los_Angeles');
 
-    console.log(`✅ Parsed ${parsed.length} forecast rows`);
-    return parsed;
+      const timestamp_utc = utcDate.toISOString();
+      const timestamp_pacific = formatInTimeZone(
+        utcDate,
+        'America/Los_Angeles',
+        "yyyy-MM-dd'T'HH:mm:ssXXX"      // → "2025-06-23T09:00:00-07:00"
+      );
+
+      return {
+        /* time */
+        timestamp: local,
+        timestamp_pacific,
+        timestamp_utc,
+        timestampPacific: timestamp_pacific,
+
+        /* data */
+        wave_height: hourly.swell_wave_height[i] != null
+          ? mToFt(hourly.swell_wave_height[i] as number)
+          : null,
+        wave_period: hourly.swell_wave_period[i] ?? null,
+        wave_direction: hourly.swell_wave_direction[i] ?? null,
+      } as SwellRow;
+    });
   } catch (err) {
-    console.error("❌ Error fetching swell forecast:", err);
+    console.error('❌ Error fetching swell forecast', err);
     return [];
   }
 }

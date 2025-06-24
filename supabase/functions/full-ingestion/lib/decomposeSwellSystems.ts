@@ -1,61 +1,62 @@
-// lib/decomposeSwellSystems.ts
-interface RawSwellEntry {
-  timestamp: string;
-  wave_height: number;
-  wave_period: number;
-  wave_direction: number;
+/* lib/decomposeSwellSystems.ts
+   — clusters buoy rows into 1-2 dominant swell systems                */
+
+export interface RawSwellEntry {
+  timestamp      : string;  // ISO, unused here
+  wave_height    : number;  // ft  – guaranteed NON-null
+  wave_period    : number;  // s   – »
+  wave_direction : number;  // °   – »
 }
 
-interface SwellSystem {
-  avgHeight: number;
-  avgPeriod: number;
-  avgDirection: number;
-  type: 'primary' | 'secondary';
+export interface SwellSystem {
+  avgHeight   : number;        // ft
+  avgPeriod   : number;        // s
+  avgDirection: number;        // °
+  type        : 'primary' | 'secondary';
 }
 
-const CLUSTER_PERIOD_DELTA = 1;    // seconds tolerance when clustering
-const CLUSTER_DIR_DELTA    = 30;   // degrees tolerance
+const CLUSTER_PERIOD_DELTA = 1;   // s
+const CLUSTER_DIR_DELTA    = 30;  // °
 
-function angularDiff(a: number, b: number) {
+function angularDiff(a: number, b: number): number {
   const d = Math.abs(a - b) % 360;
   return d > 180 ? 360 - d : d;
 }
 
 export function decomposeSwellSystems(
-  entries: RawSwellEntry[]
+  rows: RawSwellEntry[],
 ): SwellSystem[] {
-  // sort all entries by height desc
-  const sorted = [...entries].sort((a, b) => b.wave_height - a.wave_height);
-  const used = new Set<RawSwellEntry>();
-  const systems: SwellSystem[] = [];
+  /* sort descending by height so first cluster is always primary */
+  const sorted = [...rows].sort((a, b) => b.wave_height - a.wave_height);
+
+  const used   = new Set<RawSwellEntry>();
+  const output: SwellSystem[] = [];
 
   for (const seed of sorted) {
     if (used.has(seed)) continue;
 
-    // form a cluster around this seed
-    const cluster = entries.filter(e =>
-      !used.has(e) &&
-      Math.abs(e.wave_period - seed.wave_period) <= CLUSTER_PERIOD_DELTA &&
-      angularDiff(e.wave_direction, seed.wave_direction) <= CLUSTER_DIR_DELTA
+    /* cluster rows around the seed */
+    const cluster = rows.filter(r =>
+      !used.has(r) &&
+      Math.abs(r.wave_period - seed.wave_period) <= CLUSTER_PERIOD_DELTA &&
+      angularDiff(r.wave_direction, seed.wave_direction) <= CLUSTER_DIR_DELTA
     );
 
-    cluster.forEach(e => used.add(e));
+    cluster.forEach(r => used.add(r));
 
-    // compute cluster averages
     const n = cluster.length;
-    const avgHeight    = cluster.reduce((sum, e) => sum + e.wave_height, 0) / n;
-    const avgPeriod    = cluster.reduce((sum, e) => sum + e.wave_period, 0) / n;
-    const avgDirection = cluster.reduce((sum, e) => sum + e.wave_direction, 0) / n;
+    const avg = (get: (r: RawSwellEntry) => number) =>
+      cluster.reduce((sum, r) => sum + get(r), 0) / n;
 
-    systems.push({
-      avgHeight,
-      avgPeriod,
-      avgDirection,
-      type: systems.length === 0 ? 'primary' : 'secondary'
+    output.push({
+      avgHeight   : +avg(r => r.wave_height   ).toFixed(2),
+      avgPeriod   : +avg(r => r.wave_period   ).toFixed(2),
+      avgDirection: +avg(r => r.wave_direction).toFixed(0),
+      type        : output.length === 0 ? 'primary' : 'secondary',
     });
 
-    if (systems.length === 2) break;
+    if (output.length === 2) break;  // we only keep primary + secondary
   }
 
-  return systems;
+  return output;
 }

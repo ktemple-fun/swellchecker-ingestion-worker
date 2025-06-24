@@ -1,72 +1,76 @@
-// import { supabase } from "./supabaseClient.ts";
+// lib/insertIngestionData.ts
+import { supabase } from "./supabaseClient.ts";
 
-// export async function insertIngestionData(spot_slug: string, data: any[], source: 'forecast' | 'buoy') {
-//   if (!data.length) {
-//     console.warn("No ingestion data to insert.");
-//     return;
-//   }
+type SourceTag = "buoy" | "forecast";
 
-//   const payload = data.map(item => ({
-//     spot_slug,
-//     timestamp: item.timestamp,
-//     wave_height: item.wave_height,
-//     wave_period: item.wave_period,
-//     wave_direction: item.wave_direction,
-//     water_temp_c: item.water_temp_c ?? null,
-//     water_temp_f: item.water_temp_f ?? null,
-//     wind_speed_mps: item.wind_speed_mps ?? null,
-//     wind_direction: item.wind_direction ?? null,
-//     source,
-//   }));
+/* ---------- helpers -------------------------------------------- */
+function pacOffsetFor(dateISO: string): string {
+  // returns "-07:00" (PDT) or "-08:00" (PST) for that date
+  const zone = Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    timeZoneName: "short",
+  }).format(new Date(dateISO + ":00"));
+  return zone.endsWith("PDT") ? "-07:00" : "-08:00";
+}
 
+function ensureIsoPair(row: Record<string, unknown>): { pac: string | null; utc: string | null } {
+  const pac =
+    (row.timestamp_pacific ?? row.timestampPacific) as string | undefined;
+  const utc =
+    (row.timestamp_utc     ?? row.timestampUtc    ) as string | undefined;
 
-//   const { error } = await supabase
-//     .from("surf_ingestion_data")
-//     .upsert(payload, { onConflict: ["timestamp", "spot_slug", "source"] });
+  if (pac && utc) return { pac, utc };                 // ✅ both present
+  if (pac && !utc) return { pac, utc: new Date(pac).toISOString() };
 
-//   if (error && (error.message || error.details || error.hint)) {
-//     console.error("❌ Failed to upsert ingestion data:", error);
-//   }
-// }
-// insertIngestionData.ts
+  // no Pacific ISO → rebuild from local timestamp if possible
+  if (!pac && typeof row.timestamp === "string") {
+    const local = row.timestamp as string;             // "YYYY-MM-DDTHH:MM"
+    const iso   = `${local}:00${pacOffsetFor(local)}`; // attach offset
+    return { pac: iso, utc: new Date(iso).toISOString() };
+  }
 
+  // cannot recover
+  return { pac: null, utc: null };
+}
 
-
-import { supabase } from './supabaseClient.ts';
-
+/* ---------- main export ---------------------------------------- */
 export async function insertIngestionData(
   spot_slug: string,
-  data: any[],
-  source: 'buoy' | 'forecast'
-) {
-  if (!Array.isArray(data) || data.length === 0) {
-    console.warn(`⚠️ Skipping insertIngestionData for ${spot_slug}: no valid rows`);
+  rows: Record<string, unknown>[],
+  source: SourceTag,
+): Promise<void> {
+  if (!rows.length) {
+    console.warn(`⚠️ insertIngestionData: ${spot_slug}/${source} – no rows`);
     return;
   }
 
-  const payload = data.map((entry) => ({
-    spot_slug,
-    source,
-    ...entry, // assumes entry has 'timestamp'
-  }));
+  const payload = rows.flatMap((row) => {
+    const { pac, utc } = ensureIsoPair(row);
 
-  const sample = payload[0];
-  if (!sample.timestamp) {
-    console.error(`❌ insertIngestionData: missing 'timestamp' in payload sample:`, sample);
-    return;
-  }
+    if (!pac || !utc) {
+      console.error(`⛔ skipped row (no ISO) ${spot_slug}/${source}`, row);
+      return [];
+    }
+    return [{
+      ...row,
+      spot_slug,
+      source,
+      timestamp_pacific: pac,
+      timestamp_utc    : utc,
+    }];
+  });
+
+  if (!payload.length) return;   // nothing usable
 
   const { error } = await supabase
-    .from('surf_ingestion_data')
+    .from("surf_ingestion_data")
     .upsert(payload, {
-      onConflict: ['timestamp', 'spot_slug', 'source'],
+      onConflict: "timestamp_utc,spot_slug,source",
     });
 
-  if (error && (error.message || error.details || error.hint)) {
-    console.error(`❌ Failed to upsert ingestion data for ${spot_slug} - ${source}:`, {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-    });
+  if (error) {
+    console.error(`❌ upsert failed ${spot_slug}/${source}`, error);
+  } else {
+    console.log(`✅ ${spot_slug}: ${payload.length} ${source} rows upserted`);
   }
 }
