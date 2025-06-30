@@ -1,23 +1,27 @@
 import { normalizeTimestampToHour } from './time.ts';
-import { formatInTimeZone } from 'npm:date-fns-tz@2.0.0';
 
-/* ---------- inbound row types ---------------------------------- */
-export interface SwellRow {
-  timestamp: string;  // "YYYY-MM-DDTHH:MM"
-  timestamp_pacific?: string;
-  timestampPacific?: string;
-  timestamp_utc?: string;
-  timestampUtc?: string;
-  [k: string]: unknown;
-}
+import type { SwellRow } from './types.ts';
+
+/* ---------- Inbound row types ---------- */
 
 export interface WindRow {
-  timestamp: string;  // "YYYY-MM-DDTHH:MM"
+  timestamp: string; // "YYYY-MM-DDTHH:MM"
   wind_speed_mps: number;
   wind_direction: number;
 }
 
-/* ---------- helpers -------------------------------------------- */
+/* ---------- Output row type (extends SwellRow) ---------- */
+
+export interface MergedRow extends SwellRow {
+  timestamp: string;           // "YYYY-MM-DDTHH:00"
+  timestamp_pacific: string;   // full ISO with -07:00 / -08:00 offset
+  timestamp_utc: string;       // full UTC ISO
+  wind_speed_mps: number | null;
+  wind_direction: number | null;
+}
+
+/* ---------- helpers ---------- */
+
 const offsetCache = new Map<number, string>();
 
 function pacOffset(dateISO: string): string {
@@ -29,6 +33,7 @@ function pacOffset(dateISO: string): string {
     timeZone: 'America/Los_Angeles',
     timeZoneName: 'short',
   }).format(dt);
+
   const off = fmt.endsWith('PDT') ? '-07:00' : '-08:00';
   offsetCache.set(year, off);
   return off;
@@ -41,33 +46,34 @@ function toPacificIso(localHH: string): string {
   return `${d}T${hh}:00:00${off}`;
 }
 
-/* ---------- main merge ----------------------------------------- */
+/* ---------- main merge ---------- */
+
 export function mergeSwellWind(
   swell: SwellRow[],
-  wind: WindRow[],
-) {
+  wind: WindRow[]
+): MergedRow[] {
   return swell.map((s) => {
     const localHour = normalizeTimestampToHour(s.timestamp);
 
     const pacRaw =
       s.timestamp_pacific ??
-      s.timestampPacific ??
+      // deno-lint-ignore no-explicit-any
+      (s as any).timestampPacific ?? // legacy fallback
       toPacificIso(localHour);
 
     const utcIso = new Date(pacRaw).toISOString();
 
-    const w = wind.find(
-      (x) => normalizeTimestampToHour(x.timestamp) === localHour
+    const matchedWind = wind.find(
+      (w) => normalizeTimestampToHour(w.timestamp) === localHour
     );
-    
 
     return {
       ...s,
       timestamp: localHour,
       timestamp_pacific: pacRaw,
       timestamp_utc: utcIso,
-      wind_speed_mps: w?.wind_speed_mps ?? null,
-      wind_direction: w?.wind_direction ?? null,
+      wind_speed_mps: matchedWind?.wind_speed_mps ?? null,
+      wind_direction: matchedWind?.wind_direction ?? null,
     };
   });
 }

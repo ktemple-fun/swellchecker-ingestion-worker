@@ -1,10 +1,11 @@
-// lib/parsers/fetchWindForecast.ts
+
+
 
 export async function fetchWindForecast(
   lat: number,
   lng: number,
-  startDate: string,   // YYYY-MM-DD
-  endDate: string      // YYYY-MM-DD
+  startDate: string, // YYYY-MM-DD
+  endDate: string // YYYY-MM-DD
 ) {
   if (!lat || !lng || !startDate || !endDate) {
     throw new Error(
@@ -18,10 +19,10 @@ export async function fetchWindForecast(
     `?latitude=${lat}&longitude=${lng}` +
     `&hourly=wind_speed_10m,wind_direction_10m` +
     `&start_date=${startDate}&end_date=${endDate}` +
-    `&timezone=America/Los_Angeles`;          // already DST-aware local time
+    `&timezone=America/Los_Angeles`;
 
   try {
-    const res  = await fetch(url);
+    const res = await fetch(url);
     const json = await res.json();
 
     if (
@@ -38,18 +39,14 @@ export async function fetchWindForecast(
     const { time, wind_speed_10m: speed, wind_direction_10m: dir } = json.hourly;
 
     const windData = time.map((t: string, i: number) => {
-      // t comes back like "2025-06-22T09:00" (local, no offset)
-      const pacificDate = new Date(`${t}:00`);                   // treat as local
-      const utcISO = new Date(
-        pacificDate.getTime() - pacificDate.getTimezoneOffset() * 6e4
-      ).toISOString();
+      const date = new Date(t); // ISO string already in local PT from API
 
       return {
-        timestamp        : t,               // Pacific local string (legacy)
-        timestamp_pacific : pacificDate.toISOString(),
-        timestamp_utc     : utcISO,
-        wind_speed_mps   : speed[i],
-        wind_direction   : dir[i],
+        timestamp: date.toISOString(), // canonical UTC
+        timestamp_utc: date.toISOString(),
+        timestamp_pacific: formatToPacific(date),
+        wind_speed_mps: speed[i],
+        wind_direction: dir[i],
       };
     });
 
@@ -59,4 +56,25 @@ export async function fetchWindForecast(
     console.error('❌ Error fetching wind forecast:', err);
     return [];
   }
+}
+
+// Native PT formatter (safe in Deno/Supabase)
+function formatToPacific(date: Date): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+    .formatToParts(date)
+    .reduce((acc, part) => {
+      if (part.type !== 'literal') acc[part.type] = part.value;
+      return acc;
+    }, {} as Record<string, string>);
+
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}-07:00`;
 }

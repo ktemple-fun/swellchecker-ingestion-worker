@@ -15,7 +15,7 @@ export async function fetchTideData(stationId: string) {
     const response = await fetch(url);
     if (!response.ok) {
       console.error(`❌ NOAA tide fetch failed (${response.status}) for station ${stationId}:`,
-                    (await response.text()).slice(0, 100));
+        (await response.text()).slice(0, 100));
       return [];
     }
 
@@ -27,17 +27,18 @@ export async function fetchTideData(stationId: string) {
 
     const cleaned = data.predictions.map(
       (entry: { t: string; v: string }) => {
-        // entry.t is already “YYYY-MM-DD HH:MM” in Pacific time
-        const pacificDate = new Date(`${entry.t}:00`);   // ← treat as local when parsed
-        const utcDate     = new Date(pacificDate.getTime() - pacificDate.getTimezoneOffset()*60000);
+        const pacificDate = new Date(`${entry.t}:00`);
+        const utcDate = new Date(pacificDate.getTime() + pacificDate.getTimezoneOffset() * 60000); // ✅ correct direction
 
         return {
-          timestamp_pacific: pacificDate.toISOString(),   // keep for FE display
-          timestamp_utc    : utcDate.toISOString(),       // useful for DB indexing
-          height_ft       : parseFloat(entry.v)
+          timestamp_pacific: pacificDate.toISOString(),
+          timestamp_utc: utcDate.toISOString(),
+          height_ft: parseFloat(entry.v)
         };
       }
     );
+
+
 
     console.log(`✅ fetchTideData: Parsed ${cleaned.length} tide entries for station ${stationId}`);
     return cleaned;

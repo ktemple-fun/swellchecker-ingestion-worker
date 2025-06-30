@@ -62,7 +62,7 @@ export async function cacheSurfOutlook(spot_slug: string, outlook: OutlookSegmen
   const { error } = await supabase
     .from("surf_outlook_summaries")
     .upsert(payload, {
-      onConflict: ["spot_slug", "segment"],
+      onConflict: "spot_slug, segment",
     });
 
 

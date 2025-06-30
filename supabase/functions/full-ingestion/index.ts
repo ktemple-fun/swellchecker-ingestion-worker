@@ -1,80 +1,78 @@
-
-
-
+// functions/full-ingestion.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import fetchNdbcData   from "./parsers/fetchNdbcData.ts";
+import { fetchTideData }   from "./parsers/fetchTideData.ts";
+import { fetchSwellForecast } from "./parsers/fetchSwellForecast.ts";
+import { fetchWindForecast }  from "./parsers/fetchWindForecast.ts";
+import { surfSpots }         from "./config/surfSpots.ts";
+import { insertIngestionData } from "./lib/insertIngestionData.ts";
+import { insertTideObservations } from "./lib/insertTideObservations.ts";
+import { mergeSwellWind } from "./lib/mergeSwellWind.ts";
 
-import fetchNdbcData                from "./parsers/fetchNdbcData.ts";
-import { fetchTideData }            from "./parsers/fetchTideData.ts";
-import { fetchSwellForecast }       from "./parsers/fetchSwellForecast.ts";
-import { fetchWindForecast }        from "./parsers/fetchWindForecast.ts";
-
-import { surfSpots }                from "./config/surfSpots.ts";
-import { insertIngestionData }      from "./lib/insertIngestionData.ts";
-import { insertTideObservations }   from "./lib/insertTideObservations.ts";
-import { generateSurfOutlook, SpotMeta } from "./lib/generateSurfOutlook.ts";
-import { cacheSurfOutlook }         from "./lib/cacheSurfOutlook.ts";
-import { mergeSwellWind }           from "./lib/mergeSwellWind.ts";
-
-const ymd = (d: Date) => d.toISOString().split("T")[0];
-const window48h = () => {
-  const now = new Date();
-  return {
-    start: ymd(now),
-    end  : ymd(new Date(now.getTime() + 48 * 60 * 60 * 1_000)),
-  };
-};
-
-export function truncateIsoToHour(iso: string): string {
-  /* "2025-06-23T09:45:00-07:00" → "2025-06-23T09:00:00-07:00" */
-  const [date, time] = iso.split("T");
-  const hh = time.slice(0, 2);
-  return `${date}T${hh}:00:00${iso.slice(-6)}`; // preserve offset
-}
-
-
-serve(async () => {
+serve(async (req: Request) => {
   try {
-    for (const raw of surfSpots) {
-      const spot = raw as unknown as SpotMeta;
-      console.log(`🌊  ${spot.slug}: start`);
+    const url        = new URL(req.url);
+    const slug       = url.searchParams.get("spot");
+    const toProcess  = slug
+      ? surfSpots.filter(s => s.slug === slug)
+      : surfSpots;
 
-      /* buoy --------------------------------------------------- */
-      try {
-        const rows = await fetchNdbcData(spot.buoy);
-        await insertIngestionData(spot.slug, rows, "buoy");
-      } catch (e) { console.error(`buoy ${spot.slug}`, e); }
-
-      /* tide --------------------------------------------------- */
-      try {
-        const rows = await fetchTideData(spot.tideStation);
-        if (rows.length) {
-          await insertTideObservations({ station_id: spot.tideStation, observations: rows });
-        }
-      } catch (e) { console.error(`tide ${spot.slug}`, e); }
-
-      /* forecast ---------------------------------------------- */
-      if (spot.lat != null && spot.lng != null) {
-        const { start, end } = window48h();
-        try {
-          const swell = await fetchSwellForecast({ lat: spot.lat, lng: spot.lng, start, end });
-          const wind  = await fetchWindForecast  ( spot.lat,        spot.lng,      start, end );
-
-          const merged = mergeSwellWind(swell, wind);
-          await insertIngestionData(spot.slug, merged, "forecast");
-        } catch (e) { console.error(`forecast ${spot.slug}`, e); }
-      }
-
-      /* outlook ----------------------------------------------- */
-      try {
-        const outlook = await generateSurfOutlook({ spot });
-        await cacheSurfOutlook(spot.slug, outlook);
-      } catch (e) { console.error(`outlook ${spot.slug}`, e); }
-
-      console.log(`✅  ${spot.slug}: done`);
+    if (slug && toProcess.length === 0) {
+      return new Response(`No spot found with slug="${slug}"`, { status: 400 });
     }
+
+    // only one spot now → tiny CPU footprint
+    const spotMeta = toProcess[0] as unknown as {
+      slug: string; buoy: string; tideStation: string; lat?: number; lng?: number;
+    };
+    console.log(`🌊  ${spotMeta.slug}: start`);
+
+    /* 1) buoy */
+    try {
+      const rows = await fetchNdbcData(spotMeta.buoy);
+      await insertIngestionData(spotMeta.slug, rows.map(r => ({ ...r })), "buoy");
+    } catch (e) {
+      console.error(`❌ buoy ${spotMeta.slug}`, e);
+    }
+
+    /* 2) tide */
+    try {
+      const rows = await fetchTideData(spotMeta.tideStation);
+      if (rows.length) {
+        await insertTideObservations({
+          station_id:    spotMeta.tideStation,
+          location_slug: spotMeta.slug,
+          observations:  rows,
+        });
+      }
+    } catch (e) {
+      console.error(`❌ tide ${spotMeta.slug}`, e);
+    }
+
+    /* 3) forecast (swell + wind) */
+    if (spotMeta.lat != null && spotMeta.lng != null) {
+      const now = new Date();
+      const start = now.toISOString().split("T")[0];
+      const end   = new Date(now.getTime() + 48 * 3600_000).toISOString().split("T")[0];
+      try {
+        const swell  = await fetchSwellForecast({ lat: spotMeta.lat, lng: spotMeta.lng, start, end });
+        const wind   = await fetchWindForecast(spotMeta.lat, spotMeta.lng, start, end);
+        const merged = mergeSwellWind(swell, wind);
+        // deno-lint-ignore no-explicit-any
+        await insertIngestionData(spotMeta.slug, merged as any[], "forecast");
+      } catch (e) {
+        console.error(`❌ forecast ${spotMeta.slug}`, e);
+      }
+    }
+
+    console.log(`✅  ${spotMeta.slug}: done`);
     return new Response("Ingestion complete");
-  } catch (e) {
-    console.error("global error", e);
-    return new Response("Error", { status: 500 });
+  } catch (e: unknown) {
+    console.error("❌ full-ingestion error", e);
+    const msg = e instanceof Error ? e.message : String(e);
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 });

@@ -1,20 +1,30 @@
+# .github/workflows/ingestion.yml
 name: Scheduled Ingestion
 
 on:
   schedule:
-  - cron: '*/10 * * * *' 
-  workflow_dispatch:  # Allow manual trigger too
+    - cron: "0 * * * *"
+  workflow_dispatch:
 
 jobs:
-  run-ingestion:
+  run-hourly-ingestion:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Call Supabase Edge Function
-      env:
-        SUPABASE_FUNCTION_URL: https://uepdfmirixjeftqawhns.functions.supabase.co/full-ingestion
+      - uses: actions/checkout@v3
 
-        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      run: |
-        curl -X POST "$SUPABASE_FUNCTION_URL" \
-          -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
+      - name: Ingest each spot
+        env:
+          SUPABASE_FUNCTION_URL: https://uepdfmirixjeftqawhns.functions.supabase.co/full-ingestion
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          # Extract slugs from your config file
+          SLUGS=$(grep -o "slug: *'[-a-z]\+'" supabase/functions/full-ingestion/config/surfSpots.ts \
+                  | sed -E "s/slug: *'(.+)'/\\1/")
+
+          for slug in $SLUGS; do
+            echo "▶️  Ingesting $slug"
+            curl -X POST "${SUPABASE_FUNCTION_URL}?spot=${slug}" \
+                 -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}"
+            echo
+          done

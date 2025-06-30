@@ -1,0 +1,10 @@
+{
+  "importMap": "./import_map.json",
+  "tasks": {
+    "dev": "supabase functions serve --no-verify-jwt"
+  },
+  "compilerOptions": {
+    "lib": ["dom", "esnext"],
+    "strict": true
+  }
+}
