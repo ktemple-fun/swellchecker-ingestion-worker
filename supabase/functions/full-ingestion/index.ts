@@ -65,8 +65,13 @@ serve(async (req: Request) => {
       }
     }
 
-    console.log(`✅  ${spotMeta.slug}: done`);
-    return new Response("Ingestion complete");
+   
+   console.log(`✅  ${spotMeta.slug}: done`);
+return new Response(
+  JSON.stringify({ spot: spotMeta.slug, status: "done" }),
+  { headers: { "Content-Type": "application/json" } }
+);
+
   } catch (e: unknown) {
     console.error("❌ full-ingestion error", e);
     const msg = e instanceof Error ? e.message : String(e);
