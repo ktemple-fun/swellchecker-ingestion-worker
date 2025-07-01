@@ -1,19 +1,19 @@
 // functions/full-ingestion.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import fetchNdbcData   from "./parsers/fetchNdbcData.ts";
-import { fetchTideData }   from "./parsers/fetchTideData.ts";
+import fetchNdbcData from "./parsers/fetchNdbcData.ts";
+import { fetchTideData } from "./parsers/fetchTideData.ts";
 import { fetchSwellForecast } from "./parsers/fetchSwellForecast.ts";
-import { fetchWindForecast }  from "./parsers/fetchWindForecast.ts";
-import { surfSpots }         from "./config/surfSpots.ts";
+import { fetchWindForecast } from "./parsers/fetchWindForecast.ts";
+import { surfSpots } from "./config/surfSpots.ts";
 import { insertIngestionData } from "./lib/insertIngestionData.ts";
 import { insertTideObservations } from "./lib/insertTideObservations.ts";
 import { mergeSwellWind } from "./lib/mergeSwellWind.ts";
 
 serve(async (req: Request) => {
   try {
-    const url        = new URL(req.url);
-    const slug       = url.searchParams.get("spot");
-    const toProcess  = slug
+    const url = new URL(req.url);
+    const slug = url.searchParams.get("spot");
+    const toProcess = slug
       ? surfSpots.filter(s => s.slug === slug)
       : surfSpots;
 
@@ -40,9 +40,9 @@ serve(async (req: Request) => {
       const rows = await fetchTideData(spotMeta.tideStation);
       if (rows.length) {
         await insertTideObservations({
-          station_id:    spotMeta.tideStation,
+          station_id: spotMeta.tideStation,
           location_slug: spotMeta.slug,
-          observations:  rows,
+          observations: rows,
         });
       }
     } catch (e) {
@@ -53,10 +53,10 @@ serve(async (req: Request) => {
     if (spotMeta.lat != null && spotMeta.lng != null) {
       const now = new Date();
       const start = now.toISOString().split("T")[0];
-      const end   = new Date(now.getTime() + 48 * 3600_000).toISOString().split("T")[0];
+      const end = new Date(now.getTime() + 48 * 3600_000).toISOString().split("T")[0];
       try {
-        const swell  = await fetchSwellForecast({ lat: spotMeta.lat, lng: spotMeta.lng, start, end });
-        const wind   = await fetchWindForecast(spotMeta.lat, spotMeta.lng, start, end);
+        const swell = await fetchSwellForecast({ lat: spotMeta.lat, lng: spotMeta.lng, start, end });
+        const wind = await fetchWindForecast(spotMeta.lat, spotMeta.lng, start, end);
         const merged = mergeSwellWind(swell, wind);
         // deno-lint-ignore no-explicit-any
         await insertIngestionData(spotMeta.slug, merged as any[], "forecast");
@@ -65,12 +65,12 @@ serve(async (req: Request) => {
       }
     }
 
-   
-   console.log(`✅  ${spotMeta.slug}: done`);
-return new Response(
-  JSON.stringify({ spot: spotMeta.slug, status: "done" }),
-  { headers: { "Content-Type": "application/json" } }
-);
+
+    console.log(`✅  ${spotMeta.slug}: done`);
+    return new Response(
+      JSON.stringify({ spot: spotMeta.slug, status: "done" }),
+      { headers: { "Content-Type": "application/json" } }
+    );
 
   } catch (e: unknown) {
     console.error("❌ full-ingestion error", e);
