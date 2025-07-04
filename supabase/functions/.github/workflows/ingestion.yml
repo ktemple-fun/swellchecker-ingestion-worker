@@ -1,0 +1,55 @@
+# .github/workflows/ingestion.yml
+name: Scheduled Ingestion
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ingest:
+    name: Ingest spot ${{ matrix.spot }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        spot:
+          - imperial-beach
+          - coronado
+          - ocean-beach
+          - mission-beach
+          - pacific-beach
+          - la-jolla-shores
+          - blacks-beach
+          - del-mar
+          - cardiff
+          - swamis
+          - encinitas
+          - carlsbad
+          - oceanside
+          - san-clemente
+          - salt-creek
+          - dana-point
+          - newport-beach
+          - huntington-beach
+          - morro-bay
+          - pismo-beach
+          - santa-cruz
+          - pleasure-point
+          - half-moon-bay
+          - ocean-beach-sf
+          - bolinas
+          - salmon-creek
+          - truettner-point
+
+    steps:
+      - name: Trigger full-ingestion for ${{ matrix.spot }}
+        env:
+          FUNCTION_URL: https://uepdfmirixjeftqawhns.functions.supabase.co/full-ingestion
+          SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "▶️  Ingesting data for ${{ matrix.spot }}"
+          curl -s -X POST "${FUNCTION_URL}?spot=${{ matrix.spot }}" \
+               -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
+               -H "Content-Type: application/json" \
+          && echo "✅  Done ${{ matrix.spot }}"

@@ -8,76 +8,94 @@ import { surfSpots } from "./config/surfSpots.ts";
 import { insertIngestionData } from "./lib/insertIngestionData.ts";
 import { insertTideObservations } from "./lib/insertTideObservations.ts";
 import { mergeSwellWind } from "./lib/mergeSwellWind.ts";
+import type { SpotMeta } from "./lib/generateSurfOutlook.ts";
 
 serve(async (req: Request) => {
   try {
     const url = new URL(req.url);
     const slug = url.searchParams.get("spot");
-    const toProcess = slug
-      ? surfSpots.filter(s => s.slug === slug)
-      : surfSpots;
-
-    if (slug && toProcess.length === 0) {
-      return new Response(`No spot found with slug="${slug}"`, { status: 400 });
+    if (!slug) {
+      return new Response(
+        JSON.stringify({ error: "Missing required ?spot parameter" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
     }
 
-    // only one spot now → tiny CPU footprint
-    const spotMeta = toProcess[0] as unknown as {
-      slug: string; buoy: string; tideStation: string; lat?: number; lng?: number;
-    };
-    console.log(`🌊  ${spotMeta.slug}: start`);
+    // Find the spot metadata
+    const rawMeta = surfSpots.find(s => s.slug === slug);
+    if (!rawMeta) {
+      return new Response(
+        JSON.stringify({ error: `No spot found with slug=\"${slug}\"` }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    const spotMeta = rawMeta as unknown as SpotMeta;
+    console.log(`🌊  ${slug}: start ingestion`);
 
-    /* 1) buoy */
+    // 1) Buoy data
     try {
       const rows = await fetchNdbcData(spotMeta.buoy);
-      await insertIngestionData(spotMeta.slug, rows.map(r => ({ ...r })), "buoy");
-    } catch (e) {
-      console.error(`❌ buoy ${spotMeta.slug}`, e);
+      console.log(`📊 [${slug}] fetched ${rows.length} buoy rows`);
+      await insertIngestionData(slug, rows.map(r => ({ ...r })), "buoy");
+    } catch (err) {
+      console.error(`❌ buoy ingestion failed for ${slug}`, err);
     }
 
-    /* 2) tide */
+    // 2) Tide observations
     try {
-      const rows = await fetchTideData(spotMeta.tideStation);
-      if (rows.length) {
+      const tideRows = await fetchTideData(spotMeta.tideStation);
+      console.log(`📊 [${slug}] fetched ${tideRows.length} tide rows`);
+      if (tideRows.length) {
         await insertTideObservations({
           station_id: spotMeta.tideStation,
-          location_slug: spotMeta.slug,
-          observations: rows,
+          location_slug: slug,
+          observations: tideRows,
         });
       }
-    } catch (e) {
-      console.error(`❌ tide ${spotMeta.slug}`, e);
+    } catch (err) {
+      console.error(`❌ tide ingestion failed for ${slug}`, err);
     }
 
-    /* 3) forecast (swell + wind) */
+    // 3) Forecast ingestion (swell + wind)
     if (spotMeta.lat != null && spotMeta.lng != null) {
       const now = new Date();
       const start = now.toISOString().split("T")[0];
-      const end = new Date(now.getTime() + 48 * 3600_000).toISOString().split("T")[0];
+      const end = new Date(now.getTime() + 48 * 3600_000)
+        .toISOString().split("T")[0];
       try {
         const swell = await fetchSwellForecast({ lat: spotMeta.lat, lng: spotMeta.lng, start, end });
+        console.log(`📥 [${slug}] fetched ${swell.length} swell rows`);
+
         const wind = await fetchWindForecast(spotMeta.lat, spotMeta.lng, start, end);
+        console.log(`💨 [${slug}] fetched ${wind.length} wind rows`);
+
         const merged = mergeSwellWind(swell, wind);
+        console.log(`🔀 [${slug}] merged swell+wind → ${merged.length} rows`);
+
+        const missing = swell.length - merged.length;
+        if (missing) console.warn(`⚠️ [${slug}] ${missing} swell rows missing wind`);
+
         // deno-lint-ignore no-explicit-any
-        await insertIngestionData(spotMeta.slug, merged as any[], "forecast");
-      } catch (e) {
-        console.error(`❌ forecast ${spotMeta.slug}`, e);
+        await insertIngestionData(slug, merged as any[], "forecast");
+      } catch (err) {
+        console.error(`❌ forecast ingestion failed for ${slug}`, err);
       }
+    } else {
+      console.warn(`⚠️ [${slug}] missing lat/lng:`, spotMeta.lat, spotMeta.lng);
     }
 
-
-    console.log(`✅  ${spotMeta.slug}: done`);
+    console.log(`✅  ${slug}: ingestion complete`);
     return new Response(
-      JSON.stringify({ spot: spotMeta.slug, status: "done" }),
+      JSON.stringify({ spot: slug, status: "ingested" }),
       { headers: { "Content-Type": "application/json" } }
     );
 
-  } catch (e: unknown) {
-    console.error("❌ full-ingestion error", e);
-    const msg = e instanceof Error ? e.message : String(e);
-    return new Response(JSON.stringify({ error: msg }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+  } catch (err) {
+    console.error("❌ full-ingestion error", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    return new Response(
+      JSON.stringify({ error: msg }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
 });

@@ -1,0 +1,51 @@
+
+name: Scheduled Outlook Generation
+
+on:
+  schedule:
+    - cron: "5 * * * *"  # run a few minutes after ingestion
+  workflow_dispatch:
+
+jobs:
+  outlook:
+    name: Generate Outlook for ${{ matrix.spot }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        spot:
+          - imperial-beach
+          - coronado
+          - ocean-beach
+          - mission-beach
+          - pacific-beach
+          - la-jolla-shores
+          - blacks-beach
+          - del-mar
+          - cardiff
+          - swamis
+          - encinitas
+          - carlsbad
+          - oceanside
+          - san-clemente
+          - salt-creek
+          - dana-point
+          - newport-beach
+          - huntington-beach
+          - morro-bay
+          - pismo-beach
+          - santa-cruz
+          - pleasure-point
+          - half-moon-bay
+          - ocean-beach-sf
+          - bolinas
+          - salmon-creek
+          - truettner-point
+    steps:
+      - name: Call generate-outlook for ${{ matrix.spot }}
+        run: |
+          curl -s -X POST \
+            'https://uepdfmirixjeftqawhns.functions.supabase.co/generate-outlook?spot=${{ matrix.spot }}' \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H 'Content-Type: application/json' \
+          && echo "✅ ${{ matrix.spot }} outlook generated"
