@@ -60,7 +60,7 @@ serve(async (req: Request) => {
     if (spotMeta.lat != null && spotMeta.lng != null) {
       const now = new Date();
       const start = now.toISOString().split("T")[0];
-      const end = new Date(now.getTime() + 48 * 3600_000)
+    const end = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
         .toISOString().split("T")[0];
       try {
         const swell = await fetchSwellForecast({ lat: spotMeta.lat, lng: spotMeta.lng, start, end });
