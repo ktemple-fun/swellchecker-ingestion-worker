@@ -11,6 +11,7 @@ export interface OutlookBlock {
   windDirection: number    // ° true
   avg_tide_ft?: number     // optional
   date: string
+  avg_wave_direction?: number
   dayPart: 'AM' | 'PM'
   segment: string
   timestamp_utc?: string
@@ -23,6 +24,7 @@ export interface RatedOutlookBlock extends OutlookBlock {
   summary: string
   avg_wave_height: number
   avg_wave_period: number
+  avg_wave_direction?: number
   avg_wind_speed: number
   avg_wind_direction: number
   avg_tide_ft?: number
@@ -77,6 +79,7 @@ export function rateAndSummarizeOutlook(
       avg_wave_height: block.swellHeight,
       avg_wave_period: block.wavePeriod ?? 0,
       avg_wind_speed: block.windSpeed,
+      avg_wave_direction: block.avg_wave_direction ?? undefined,
       avg_wind_direction: block.windDirection,
       avg_tide_ft: block.avg_tide_ft ?? undefined,
     }

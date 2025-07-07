@@ -30,7 +30,7 @@ export interface TideEntry {
 export interface OutlookBlock {
   swellHeight: number;
   wavePeriod?: number;
-  waveDirection?: number;
+  avg_wave_direction?: number;
   windSpeed: number;
   windDirection: number;
   avg_tide_ft?: number;
@@ -88,7 +88,12 @@ export function groupForecastByDayPart({
     if (periods.length) grouped[key]!.wavePeriod = avg(periods);
 
     const dirs = bucket.map(b => b.direction).filter((n): n is number => n != null);
-    if (dirs.length) grouped[key]!.waveDirection = Math.round(avg(dirs));
+    if (dirs.length) {
+      const sinSum = dirs.reduce((sum, d) => sum + Math.sin((d * Math.PI) / 180), 0);
+      const cosSum = dirs.reduce((sum, d) => sum + Math.cos((d * Math.PI) / 180), 0);
+      const angle = Math.atan2(sinSum, cosSum) * (180 / Math.PI);
+      grouped[key]!.avg_wave_direction = Math.round((angle + 360) % 360);
+    }
   }
 
   /* 3️⃣ Merge wind rows */
