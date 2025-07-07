@@ -39,7 +39,11 @@ export async function generateSurfOutlook({ spot }: { spot: SpotMeta }) {
 
   const now = new Date();
   const startDate = now.toISOString().split('T')[0];
-  const endDate = new Date(now.getTime() + 48 * 60 * 60 * 1_000).toISOString().split('T')[0];
+
+  // 7-day range
+  const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1_000)
+    .toISOString()
+    .split('T')[0];
 
   const swellRaw = await fetchSwellForecast({ lat, lng, start: startDate, end: endDate });
   const windRaw = await fetchWindForecast(lat, lng, startDate, endDate);
@@ -141,6 +145,7 @@ export async function generateSurfOutlook({ spot }: { spot: SpotMeta }) {
     segment: r.segment,
     avg_wave_height: r.avg_wave_height,
     avg_wave_period: r.avg_wave_period,
+    avg_wave_direction: r.avg_wave_direction,
     avg_tide_ft: r.avg_tide_ft,
     avg_wind_speed: r.avg_wind_speed,
     avg_wind_direction: r.avg_wind_direction,

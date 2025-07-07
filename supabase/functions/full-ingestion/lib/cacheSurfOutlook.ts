@@ -44,9 +44,9 @@ export async function cacheSurfOutlook(spot_slug: string, outlook: OutlookSegmen
         avg_wind_direction: item.avg_wind_direction ?? null,
         wind_quality: item.wind_quality,
         rating: item.rating,
-        quality: item.rating, // fallback for legacy use
-        timestamp_utc: item.timestamp_utc ?? null,        // 🆕 add this
-        timestamp_pacific: item.timestamp_pacific ?? null, // 🆕 add this
+        quality: item.rating, 
+        timestamp_utc: item.timestamp_utc ?? null,       
+        timestamp_pacific: item.timestamp_pacific ?? null, 
         summary: item.summary,
         updated_at: new Date().toISOString(),
       };
@@ -57,7 +57,7 @@ export async function cacheSurfOutlook(spot_slug: string, outlook: OutlookSegmen
     return;
   }
   
-      console.log(JSON.stringify(payload, null, 2)); // add this line before upsert
+      console.log(JSON.stringify(payload, null, 2)); 
 
   const { error } = await supabase
     .from("surf_outlook_summaries")

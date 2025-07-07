@@ -4,6 +4,7 @@ interface OutlookSegment {
   segment: string;
   avg_wave_height: number;
   avg_wave_period: number;
+  avg_wave_direction: number;
   avg_tide_ft: number | null;
   avg_wind_speed: number | null;
   avg_wind_direction: number | null;
@@ -39,6 +40,7 @@ export async function cacheSurfOutlook(spot_slug: string, outlook: OutlookSegmen
         part_of_day: part === 'AM' || part === 'PM' ? part : null,
         avg_wave_height: item.avg_wave_height,
         avg_wave_period: item.avg_wave_period,
+        avg_wave_direction: item.avg_wave_direction ?? null,
         avg_tide_ft: item.avg_tide_ft ?? null,
         avg_wind_speed_mps: item.avg_wind_speed ?? null,
         avg_wind_direction: item.avg_wind_direction ?? null,
