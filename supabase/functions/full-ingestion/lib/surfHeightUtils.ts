@@ -21,11 +21,6 @@ export function estimateSurfFaceFt(
 ): number {
   if (!Hs_ft || Hs_ft <= 0) return 0;
 
-  // DEBUG: log inputs
-  console.log(
-    `[surfHeightUtils] raw=${Hs_ft.toFixed(2)} ft, Tp=${Tp_s ?? 'null'} s, ` +
-    `exposure=${exposure}, bathymetry=${bathymetry}`
-  );
 
   // 1) Base multiplier (no Rayleigh boost)
   const distributionFactor = 1.0;
@@ -47,12 +42,7 @@ export function estimateSurfFaceFt(
   // Compute face height
   const face = Hs_ft * distributionFactor * periodFactor * localCoeff;
 
-  // DEBUG: factors breakdown
-  console.log(
-    `[surfHeightUtils] dist=${distributionFactor.toFixed(2)}, ` +
-    `periodF=${periodFactor.toFixed(2)}, localC=${localCoeff.toFixed(2)} ` +
-    `→ face=${face.toFixed(2)} ft`
-  );
+
 
   return +face.toFixed(1);
 }
