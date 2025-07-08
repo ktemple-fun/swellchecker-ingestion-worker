@@ -84,6 +84,9 @@ export async function generateSurfOutlook({ spot }: { spot: SpotMeta }) {
       })
   );
 
+  console.log('[generateSurfOutlook] sample swellByHour:', swellByHour.slice(0, 3));
+
+
   const windByHour = windRaw.map((w: Awaited<ReturnType<typeof fetchWindForecast>>[number]) => {
     const hour = new Date(w.timestamp_utc).getUTCHours();
     const day = w.timestamp_utc.split('T')[0];

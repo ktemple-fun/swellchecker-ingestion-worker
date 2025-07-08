@@ -89,10 +89,14 @@ export function groupForecastByDayPart({
 
     const dirs = bucket.map(b => b.direction).filter((n): n is number => n != null);
     if (dirs.length) {
+
       const sinSum = dirs.reduce((sum, d) => sum + Math.sin((d * Math.PI) / 180), 0);
       const cosSum = dirs.reduce((sum, d) => sum + Math.cos((d * Math.PI) / 180), 0);
       const angle = Math.atan2(sinSum, cosSum) * (180 / Math.PI);
       grouped[key]!.waveDirection = Math.round((angle + 360) % 360);
+    }
+    if (!dirs.length) {
+      console.warn('[groupForecastByDayPart] no wave directions in bucket:', key, bucket);
     }
   }
 
