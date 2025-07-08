@@ -124,6 +124,7 @@ export async function generateSurfOutlook({ spot }: { spot: SpotMeta }) {
         wavePeriod: b.wavePeriod ?? undefined,
         windSpeed: windKt,
         windDirection: b.windDirection,
+        avg_wave_direction: b.waveDirection,
         avg_tide_ft: b.avg_tide_ft ?? undefined,
         date: b.date,
         dayPart: b.dayPart,

@@ -30,7 +30,7 @@ export interface TideEntry {
 export interface OutlookBlock {
   swellHeight: number;
   wavePeriod?: number;
-  avg_wave_direction?: number;
+  waveDirection?: number;
   windSpeed: number;
   windDirection: number;
   avg_tide_ft?: number;
@@ -92,7 +92,7 @@ export function groupForecastByDayPart({
       const sinSum = dirs.reduce((sum, d) => sum + Math.sin((d * Math.PI) / 180), 0);
       const cosSum = dirs.reduce((sum, d) => sum + Math.cos((d * Math.PI) / 180), 0);
       const angle = Math.atan2(sinSum, cosSum) * (180 / Math.PI);
-      grouped[key]!.avg_wave_direction = Math.round((angle + 360) % 360);
+      grouped[key]!.waveDirection = Math.round((angle + 360) % 360);
     }
   }
 
