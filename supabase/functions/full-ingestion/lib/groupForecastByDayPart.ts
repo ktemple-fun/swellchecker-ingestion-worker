@@ -132,50 +132,43 @@ export function groupForecastByDayPart({
   }
 
   /* 6️⃣ Final type-safe cast */
-    const today = new Date().toISOString().split('T')[0]
+  const dates = Array.from(
+    new Set(Object.keys(grouped).map(k => k.split('_')[0]))
+  ).sort()
+
   const parts: DayPart[] = ['AM', 'PM']
   const finalBlocks: OutlookBlock[] = []
 
-  for (const part of parts) {
-    const key = `${today}_${part}`
-    const exact = grouped[key]
+  for (const date of dates) {
+    for (const part of parts) {
+      const key = `${date}_${part}`
+      const exact = grouped[key]
 
-    if (
-      exact &&
-      exact.swellHeight !== undefined &&
-      exact.windSpeed !== undefined &&
-      exact.windDirection !== undefined &&
-      exact.timestamp_pacific &&
-      exact.timestamp_utc
-    ) {
-      finalBlocks.push(exact as OutlookBlock)
-    } else {
-      // Look for fallback from previous days
-      const fallbackKey = Object.keys(grouped)
-        .filter(
-          k =>
-            k.endsWith(`_${part}`) &&
-            grouped[k]!.swellHeight !== undefined &&
-            grouped[k]!.windSpeed !== undefined &&
-            grouped[k]!.windDirection !== undefined
-        )
-        .sort()
-        .reverse()[0]
-
-      if (fallbackKey) {
-        const fallback = { ...grouped[fallbackKey]! } as OutlookBlock
-        fallback.date = today
-        fallback.segment = `${today} ${part}`
-        fallback.timestamp_pacific = new Date().toISOString()
-        fallback.timestamp_utc = new Date().toISOString()
-        console.warn(`[groupForecastByDayPart] fallback used for ${key}`, fallback)
-        finalBlocks.push(fallback)
+      if (exact && exact.swellHeight !== undefined) {
+        finalBlocks.push(exact as OutlookBlock)
       } else {
-        console.warn(`[groupForecastByDayPart] NO fallback available for ${key}`)
+        // Fallback from other days
+        const fallbackKey = Object.keys(grouped)
+          .filter(k => k.endsWith(`_${part}`) && grouped[k]!.swellHeight !== undefined)
+          .sort()
+          .reverse()[0]
+
+        if (fallbackKey) {
+          const fallback = { ...grouped[fallbackKey]! } as OutlookBlock
+          fallback.date = date
+          fallback.segment = `${date} ${part}`
+          fallback.timestamp_pacific = new Date().toISOString()
+          fallback.timestamp_utc = new Date().toISOString()
+          console.warn(`[groupForecastByDayPart] fallback used for ${key}`, fallback)
+          finalBlocks.push(fallback)
+        } else {
+          console.warn(`[groupForecastByDayPart] NO fallback available for ${key}`)
+        }
       }
     }
   }
 
+
   return finalBlocks
-  
+
 }
