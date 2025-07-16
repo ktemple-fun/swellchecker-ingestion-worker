@@ -132,9 +132,8 @@ export function groupForecastByDayPart({
   }
 
   /* 6️⃣ Final type-safe cast */
-  const dates = Array.from(
-    new Set(Object.keys(grouped).map(k => k.split('_')[0]))
-  ).sort()
+ const dates = Array.from(new Set(swellByHour.map(s => s.day))).sort()
+
 
   const parts: DayPart[] = ['AM', 'PM']
   const finalBlocks: OutlookBlock[] = []
